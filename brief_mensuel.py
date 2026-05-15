@@ -668,6 +668,12 @@ def cap_name(name: str) -> str:
     if not name:
         return ""
     return name[0].upper() + name[1:]
+  
+def _break_url(ticker: str) -> str:
+    """Insère un Word Joiner (U+2060) autour du '.' du ticker pour empêcher
+    LinkedIn de détecter ACS.MC, CBK.DE, MC.PA, etc. comme des URLs.
+    Caractère invisible, zéro largeur, sans impact visuel."""
+    return ticker.replace(".", "\u2060.\u2060")
 
 def smart_trunc(s: str, n: int = 22) -> str:
     """Tronque sur le dernier espace avant n, ajoute …"""
@@ -976,7 +982,7 @@ def build_linkedin_post(rk: Rankings, period_fr: str, prev_month_fr: str,
         val   = f"{r['perf_1m']:+.1f}%" if pd.notna(r.get("perf_1m")) else "—"
 
         # ⭐ NOM D'ENTREPRISE EN AVANT
-        line1 = f"{medal} {name}  📈 {val}  ·  {flag} {r['ticker']} {elig}"
+        line1 = f"{medal} {name}  📈 {val}  ·  {flag} {_break_url(r['ticker'])} {elig}"
 
         b = r.get("boursorama_link") or ""
         y = r.get("yahoo_link") or ""
@@ -997,7 +1003,7 @@ def build_linkedin_post(rk: Rankings, period_fr: str, prev_month_fr: str,
         stars = reco_stars(r.get("reco_mean"))
 
         # ⭐ NOM D'ENTREPRISE EN AVANT
-        line1 = f"{medal} {name}  🎯 {score}  {stars}  ·  {flag} {r['ticker']} {elig}"
+        line1 = f"{medal} {name}  🎯 {score}  {stars}  ·  {flag} {_break_url(r['ticker'])} {elig}"
 
         b = r.get("boursorama_link") or ""
         y = r.get("yahoo_link") or ""
@@ -1016,7 +1022,7 @@ def build_linkedin_post(rk: Rankings, period_fr: str, prev_month_fr: str,
         name = smart_trunc(cap_name(r.get("name", "")), 22)
         elig = "✅PEA" if r.get("pea") else "🌍CTO"
         # ⭐ NOM D'ENTREPRISE EN AVANT, pas de lien (déjà dans Top 5+5)
-        return f"{emoji} {sec_label} · {name} {score} · {flag} {r['ticker']} {elig}"
+        return f"{emoji} {sec_label} · {name} {score} · {flag} {_break_url(r['ticker'])} {elig}"
 
     # ── Build sections ───────────────────────────────────────────────
     perf_rows = "\n\n".join(_row_perf(r.to_dict(), i)
@@ -1277,8 +1283,21 @@ body {
 .cta-quiz-opt { font-size:18px; color:var(--text-mid); }
 .cta-quiz-opt b { color:var(--blue); margin-right:14px;
   font-family:'Inter'; font-weight:800; }
+
+/* Réactions LinkedIn (style natif) */
+.cta-reactions { display:flex; justify-content:center; gap:48px;
+  margin-bottom:24px; padding-bottom:24px;
+  border-bottom:1px solid var(--grid); }
+.reaction-item { display:flex; flex-direction:column; align-items:center; gap:6px; }
+.reaction-emoji { font-size:54px; line-height:1; }
+.reaction-label { color:var(--text-mid); font-size:13px;
+  letter-spacing:1.5px; text-transform:uppercase; font-weight:600; }
+
+/* Hint sous la question */
+.cta-quiz-hint { color:var(--text-mid); font-size:17px;
+  margin-top:14px; font-style:italic; line-height:1.5; }
+
 .cta-disc { color:var(--dim); font-size:13px; margin-top:35px;
-  font-style:italic; line-height:1.6; }
 
 /* Badge "prochain brief" - encadré bleu, look pro */
 .next-brief-badge {
@@ -1569,12 +1588,22 @@ def html_cta(rk: Rankings, snapshot: str, period_fr: str) -> str:
     </div>
   </div>
   <div class="cta-quiz">
-    <div class="cta-quiz-q">💬 Et toi, t'es plutôt :</div>
-    <div class="cta-quiz-opts">
-      <div class="cta-quiz-opt"><b>A</b> 100% ETF, peinard ?</div>
-      <div class="cta-quiz-opt"><b>B</b> 100% stock-picking, à l'instinct ?</div>
-      <div class="cta-quiz-opt"><b>C</b> Hybride, comme moi ?</div>
+    <div class="cta-reactions">
+      <div class="reaction-item">
+        <div class="reaction-emoji">👍</div>
+        <div class="reaction-label">J'aime</div>
+      </div>
+      <div class="reaction-item">
+        <div class="reaction-emoji">👏</div>
+        <div class="reaction-label">Bravo</div>
+      </div>
+      <div class="reaction-item">
+        <div class="reaction-emoji">❤️</div>
+        <div class="reaction-label">Adore</div>
+      </div>
     </div>
+    <div class="cta-quiz-q">💬 Réagis + commente ta stratégie</div>
+    <div class="cta-quiz-hint">ETF · Stock-picking · Hybride ? Détaille en commentaire 👇</div>
   </div>
   <div class="next-brief-badge">
     🚀 À BIENTÔT POUR LE BRIEF DE {next_month.upper()}
