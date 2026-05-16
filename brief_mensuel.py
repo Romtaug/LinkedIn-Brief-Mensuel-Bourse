@@ -600,8 +600,8 @@ def fetch_universe(tickers: list[str], market: str) -> list[dict[str, Any]]:
 # ── Benchmarks indices (S&P 500, CAC 40, STOXX 600) ──────────────────
 BENCHMARKS = [
     {"ticker": "^GSPC",  "label": "S&P 500",    "flag": "🇺🇸"},
-    {"ticker": "^FCHI",  "label": "CAC 40",     "flag": "🇫🇷"},
     {"ticker": "^STOXX", "label": "STOXX 600",  "flag": "🇪🇺"},
+    {"ticker": "^FCHI",  "label": "CAC 40",     "flag": "🇫🇷"},
 ]
 
 def fetch_benchmarks() -> list[dict[str, Any]]:
