@@ -1,0 +1,82 @@
+name: 🧪 Brief Quotidien · TEST RÉEL
+
+# ─────────────────────────────────────────────────────────────────
+# MODE TEST QUOTIDIEN : poste tous les jours pour valider le pipeline
+# en conditions réelles, avec TOUS les tickers (1370 actions).
+# - TEST_MODE=false (prod : 1370 tickers)
+# - FORCE_RUN=true (bypass check premier jour ouvré)
+# - SEND_TO_WEBHOOK=true (envoie vers LinkedIn TEST)
+# 
+# ⚠️ ATTENTION : poster tous les jours sur LinkedIn peut déclencher
+# le filtre anti-spam de LinkedIn. À utiliser sur ton compte TEST,
+# pas sur ton compte principal.
+# ─────────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    # Tous les jours à 7h UTC (= 8h-9h Paris selon saison)
+    - cron: '0 7 * * *'
+
+  workflow_dispatch:
+    inputs:
+      send_to_webhook:
+        description: 'Envoyer au webhook Make.com ?'
+        required: false
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+
+jobs:
+  brief-daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🐍 Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: 📦 Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🌐 Install Playwright Chromium
+        run: |
+          python -m playwright install chromium
+          python -m playwright install-deps chromium
+
+      - name: 🎬 Install ffmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: 🚀 Run Brief Quotidien (TEST RÉEL · 1370 tickers)
+        env:
+          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+          CODE_PARRAINAGE: ${{ secrets.CODE_PARRAINAGE }}
+          PARRAINAGE_URL: ${{ secrets.PARRAINAGE_URL }}
+          # ⚡ TEST QUOTIDIEN : prod (1370 tickers) + force run + send
+          TEST_MODE: 'false'
+          FORCE_RUN: 'true'
+          SEND_TO_WEBHOOK: ${{ github.event.inputs.send_to_webhook || 'true' }}
+        run: python brief_mensuel.py
+
+      - name: 📤 Upload outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brief-daily-${{ github.run_number }}
+          path: |
+            out/*.mp4
+            out/*.txt
+            out/*.xlsx
+          retention-days: 7
+          if-no-files-found: warn
