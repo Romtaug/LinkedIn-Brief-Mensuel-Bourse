@@ -1,6 +1,6 @@
 """
 ═══════════════════════════════════════════════════════════════════════
-  brief_mensuel.py · BRIEF MENSUEL EQUITY — GITHUB ACTIONS · PREMIUM
+  brief_mensuel.py · BRIEF MENSUEL EQUITY — GITHUB ACTIONS · PREMIUM v7
   ─────────────────────────────────────────────────────────────────────
   Pipeline complet automatisé pour LinkedIn :
     1. Vérifie si on est le premier jour ouvré du mois → sinon skip
@@ -11,24 +11,24 @@
     6. Rotation snapshots (garde 5 derniers max)
     7. Commit snapshots dans le repo (gestion historique)
 
+  🆕 v7 — Transitions xfade entre sections (cover → perf → conv → sec → cta)
+  🆕 v7 — Tri uniforme : Top Potentiel/Conviction par total_pct desc partout
+  🆕 v7 — CSS .cta-disc fixé
+  
   📅 PLANIFICATION :
     Le workflow GitHub Actions se déclenche tous les 1-4 du mois à 7h UTC.
     Le script vérifie : si aujourd'hui = premier jour ouvré du mois → RUN.
     Sinon → skip (exit 0 propre).
     
-    Exemples 2026 :
-      · 1er juin (lundi)       → RUN ✅
-      · 1er juillet (mercredi) → RUN ✅
-      · 1er août (samedi)      → skip, 2 août (dim) skip, 3 août (lundi) → RUN ✅
-
   🔐 SECRETS GITHUB ACTIONS REQUIS :
     · WEBHOOK_URL       : URL webhook Make.com
-    · CODE_PARRAINAGE   : (optionnel) ton code parrain Boursorama (défaut: ROTA0058)
-    · PARRAINAGE_URL    : (optionnel) URL parrainage (défaut: bour.so/p/GB93ZfQVNVr)
+    · CODE_PARRAINAGE   : (optionnel, défaut: ROTA0058)
+    · PARRAINAGE_URL    : (optionnel, défaut: bour.so/p/GB93ZfQVNVr)
 
   🎮 VARIABLES D'ENV :
     · TEST_MODE : 'true' (mode test 28 actions) ou 'false' (prod ~1075)
     · SEND_TO_WEBHOOK : 'true'/'false' (par défaut true)
+    · FORCE_RUN : 'true' pour bypass check premier jour ouvré (tests)
 
   Auteur : Romain Taugourdeau
 ═══════════════════════════════════════════════════════════════════════
@@ -66,7 +66,7 @@ def _env_bool(key: str, default: bool = False) -> bool:
     return default
 
 # ── Modes & quantities ───────────────────────────────────────────────
-TEST_MODE        = _env_bool("TEST_MODE", default=True)  # true par défaut pour 1ers runs sûrs
+TEST_MODE        = _env_bool("TEST_MODE", default=True)
 N_TICKERS_TEST   = 10
 N_TOP            = 5
 N_TOP_VIDEO      = 10
@@ -77,13 +77,13 @@ N_WORKERS        = 12
 SEND_TO_WEBHOOK  = _env_bool("SEND_TO_WEBHOOK", default=True)
 WEBHOOK_URL      = os.getenv("WEBHOOK_URL", "").strip()
 
-# ── Litterbox (host temporaire pour la vidéo MP4) ────────────────────
+# ── Litterbox ────────────────────────────────────────────────────────
 LITTERBOX_EXPIRATION = "24h"
 LITTERBOX_MAX_RETRIES = 3
 
 OUT_DIR          = Path("out")
 SNAPSHOT_DIR     = Path("snapshots")
-MAX_SNAPSHOTS    = 5             # garde les 5 derniers snapshots (rotation auto)
+MAX_SNAPSHOTS    = 5
 
 # ── Branding & links ─────────────────────────────────────────────────
 SIGNATURE        = "ROMAIN TAUGOURDEAU"
@@ -123,6 +123,7 @@ VIDEO_FADE_IN    = 0.0                      # 0 = pas de fondu noir au début (v
 VIDEO_FADE_OUT   = 1.0                      # secondes de fade out à la fin
 VIGNETTE         = True                     # vignette cinématique légère
 KEN_BURNS        = True                     # zoom subtil sur la cover
+XFADE_DURATION   = 0.4                      # 🆕 fondu entre sections principales (cover→perf→conv→sec→cta)
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -668,12 +669,6 @@ def cap_name(name: str) -> str:
     if not name:
         return ""
     return name[0].upper() + name[1:]
-  
-def _break_url(ticker: str) -> str:
-    """Insère un Word Joiner (U+2060) autour du '.' du ticker pour empêcher
-    LinkedIn de détecter ACS.MC, CBK.DE, MC.PA, etc. comme des URLs.
-    Caractère invisible, zéro largeur, sans impact visuel."""
-    return ticker.replace(".", "\u2060.\u2060")
 
 def smart_trunc(s: str, n: int = 22) -> str:
     """Tronque sur le dernier espace avant n, ajoute …"""
@@ -723,21 +718,17 @@ def reco_stars(reco_mean: Any) -> str:
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  9. SNAPSHOTS (diff mois précédent + rotation)
+#  9. SNAPSHOTS (diff mois précédent)
 # ═════════════════════════════════════════════════════════════════════
 
 def is_first_business_day_of_month(today: date | None = None) -> bool:
     """True si aujourd'hui est le premier jour ouvré du mois (lundi-vendredi).
-    Si 1er = samedi/dimanche → reporte au lundi suivant.
-    """
+    Si 1er = samedi/dimanche → reporte au lundi suivant."""
     if today is None:
         today = date.today()
-
-    # Calcule le premier jour ouvré du mois courant
     d = date(today.year, today.month, 1)
     while d.weekday() >= 5:  # 5 = samedi, 6 = dimanche
         d += timedelta(days=1)
-
     return today == d
 
 
@@ -747,7 +738,6 @@ def rotate_snapshots(max_keep: int = MAX_SNAPSHOTS) -> None:
         return
     files = sorted(SNAPSHOT_DIR.glob("ranking_*.json"),
                    key=lambda p: p.name, reverse=True)
-    # Garde les N les plus récents (les plus haut dans le tri descendant)
     to_keep = files[:max_keep]
     to_delete = files[max_keep:]
     for f in to_delete:
@@ -766,8 +756,7 @@ def save_snapshot(df: pd.DataFrame, suffix: str) -> Path:
     path = SNAPSHOT_DIR / f"ranking_{month_key}{suffix}.json"
     df.to_json(path, orient="records")
     log.info("📸  snapshot sauvegardé → %s", path)
-
-    # Rotation : garde les N derniers
+    # Rotation auto
     rotate_snapshots()
     return path
 
@@ -904,12 +893,11 @@ class Rankings:
 
         _pea_conv = self.df_pea.dropna(subset=["reco_mean"])
         _cto_conv = self.df_cto.dropna(subset=["reco_mean"])
+        # 🆕 v7 : tri uniformisé par total_pct desc (même tri que le POST)
         self.top_conv_pea = (_pea_conv[_pea_conv["total_pct"] > 0]
-                             .sort_values(["reco_mean", "total_pct"],
-                                          ascending=[True, False]).head(N_TOP_VIDEO))
+                             .sort_values("total_pct", ascending=False).head(N_TOP_VIDEO))
         self.top_conv_cto = (_cto_conv[_cto_conv["total_pct"] > 0]
-                             .sort_values(["reco_mean", "total_pct"],
-                                          ascending=[True, False]).head(N_TOP_VIDEO))
+                             .sort_values("total_pct", ascending=False).head(N_TOP_VIDEO))
 
         self.sec_pea = (self.df_pea.sort_values("total_pct", ascending=False)
                         .groupby("sector_fr", sort=False)
@@ -982,7 +970,7 @@ def build_linkedin_post(rk: Rankings, period_fr: str, prev_month_fr: str,
         val   = f"{r['perf_1m']:+.1f}%" if pd.notna(r.get("perf_1m")) else "—"
 
         # ⭐ NOM D'ENTREPRISE EN AVANT
-        line1 = f"{medal} {name}  📈 {val}  ·  {flag} {_break_url(r['ticker'])} {elig}"
+        line1 = f"{medal} {name}  📈 {val}  ·  {flag} {r['ticker']} {elig}"
 
         b = r.get("boursorama_link") or ""
         y = r.get("yahoo_link") or ""
@@ -1003,7 +991,7 @@ def build_linkedin_post(rk: Rankings, period_fr: str, prev_month_fr: str,
         stars = reco_stars(r.get("reco_mean"))
 
         # ⭐ NOM D'ENTREPRISE EN AVANT
-        line1 = f"{medal} {name}  🎯 {score}  {stars}  ·  {flag} {_break_url(r['ticker'])} {elig}"
+        line1 = f"{medal} {name}  🎯 {score}  {stars}  ·  {flag} {r['ticker']} {elig}"
 
         b = r.get("boursorama_link") or ""
         y = r.get("yahoo_link") or ""
@@ -1022,7 +1010,7 @@ def build_linkedin_post(rk: Rankings, period_fr: str, prev_month_fr: str,
         name = smart_trunc(cap_name(r.get("name", "")), 22)
         elig = "✅PEA" if r.get("pea") else "🌍CTO"
         # ⭐ NOM D'ENTREPRISE EN AVANT, pas de lien (déjà dans Top 5+5)
-        return f"{emoji} {sec_label} · {name} {score} · {flag} {_break_url(r['ticker'])} {elig}"
+        return f"{emoji} {sec_label} · {name} {score} · {flag} {r['ticker']} {elig}"
 
     # ── Build sections ───────────────────────────────────────────────
     perf_rows = "\n\n".join(_row_perf(r.to_dict(), i)
@@ -1283,21 +1271,8 @@ body {
 .cta-quiz-opt { font-size:18px; color:var(--text-mid); }
 .cta-quiz-opt b { color:var(--blue); margin-right:14px;
   font-family:'Inter'; font-weight:800; }
-
-/* Réactions LinkedIn (style natif) */
-.cta-reactions { display:flex; justify-content:center; gap:48px;
-  margin-bottom:24px; padding-bottom:24px;
-  border-bottom:1px solid var(--grid); }
-.reaction-item { display:flex; flex-direction:column; align-items:center; gap:6px; }
-.reaction-emoji { font-size:54px; line-height:1; }
-.reaction-label { color:var(--text-mid); font-size:13px;
-  letter-spacing:1.5px; text-transform:uppercase; font-weight:600; }
-
-/* Hint sous la question */
-.cta-quiz-hint { color:var(--text-mid); font-size:17px;
-  margin-top:14px; font-style:italic; line-height:1.5; }
-
 .cta-disc { color:var(--dim); font-size:13px; margin-top:35px;
+  font-style:italic; line-height:1.6; }
 
 /* Badge "prochain brief" - encadré bleu, look pro */
 .next-brief-badge {
@@ -1588,22 +1563,12 @@ def html_cta(rk: Rankings, snapshot: str, period_fr: str) -> str:
     </div>
   </div>
   <div class="cta-quiz">
-    <div class="cta-reactions">
-      <div class="reaction-item">
-        <div class="reaction-emoji">👍</div>
-        <div class="reaction-label">J'aime</div>
-      </div>
-      <div class="reaction-item">
-        <div class="reaction-emoji">👏</div>
-        <div class="reaction-label">Bravo</div>
-      </div>
-      <div class="reaction-item">
-        <div class="reaction-emoji">❤️</div>
-        <div class="reaction-label">Adore</div>
-      </div>
+    <div class="cta-quiz-q">💬 Et toi, t'es plutôt :</div>
+    <div class="cta-quiz-opts">
+      <div class="cta-quiz-opt"><b>A</b> 100% ETF, peinard ?</div>
+      <div class="cta-quiz-opt"><b>B</b> 100% stock-picking, à l'instinct ?</div>
+      <div class="cta-quiz-opt"><b>C</b> Hybride, comme moi ?</div>
     </div>
-    <div class="cta-quiz-q">💬 Réagis + commente ta stratégie</div>
-    <div class="cta-quiz-hint">ETF · Stock-picking · Hybride ? Détaille en commentaire 👇</div>
   </div>
   <div class="next-brief-badge">
     🚀 À BIENTÔT POUR LE BRIEF DE {next_month.upper()}
@@ -1617,10 +1582,11 @@ def html_cta(rk: Rankings, snapshot: str, period_fr: str) -> str:
 
 
 def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
-                          tmp_dir: Path) -> list[tuple[Path, float]]:
-    """Render all frames to PNG files. Returns [(path, duration_seconds), ...].
+                          tmp_dir: Path) -> list[tuple[str, list[tuple[Path, float]]]]:
+    """Render all frames to PNG files. Returns sections : [(section_name, [(path, duration), ...]), ...].
+    🆕 v7 — Sections : cover · perf · conv · sectors · cta (utilisées pour xfade transitions).
     Wrapped in a thread to avoid Jupyter asyncio conflict."""
-    result: dict[str, Any] = {"frames": [], "error": None}
+    result: dict[str, Any] = {"sections": [], "error": None}
 
     def _work():
         # ── FIX Windows + Jupyter ─────────────────────────────────
@@ -1647,37 +1613,48 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
                     page.screenshot(path=str(out_path), full_page=False)
                     return (out_path, dur_s)
 
+                # ── SECTION 1 : COVER (3 frames Ken Burns) ──────
+                cover_frames = []
                 for f, d in [(1, 0.4), (2, 1.2), (3, 2.2)]:
-                    result["frames"].append(shot(html_cover(rk, snapshot, period_fr, f), d))
+                    cover_frames.append(shot(html_cover(rk, snapshot, period_fr, f), d))
+                result["sections"].append(("cover", cover_frames))
 
+                # ── SECTION 2 : TOP PERF (défilement 0.5s/ligne + hold 2.5s) ──
+                perf_frames = []
                 for v in range(1, N_TOP_VIDEO + 1):
-                    result["frames"].append(shot(html_perf(rk, snapshot, period_fr, v), 0.5))
-                result["frames"].append(shot(html_perf(rk, snapshot, period_fr, N_TOP_VIDEO), 2.5))
+                    perf_frames.append(shot(html_perf(rk, snapshot, period_fr, v), 0.5))
+                perf_frames.append(shot(html_perf(rk, snapshot, period_fr, N_TOP_VIDEO), 2.5))
+                result["sections"].append(("perf", perf_frames))
 
+                # ── SECTION 3 : TOP CONV (défilement 0.5s/ligne + hold 2.5s) ──
+                conv_frames = []
                 for v in range(1, N_TOP_VIDEO + 1):
-                    result["frames"].append(shot(html_conv(rk, snapshot, period_fr, v), 0.5))
-                result["frames"].append(shot(html_conv(rk, snapshot, period_fr, N_TOP_VIDEO), 2.5))
+                    conv_frames.append(shot(html_conv(rk, snapshot, period_fr, v), 0.5))
+                conv_frames.append(shot(html_conv(rk, snapshot, period_fr, N_TOP_VIDEO), 2.5))
+                result["sections"].append(("conv", conv_frames))
 
-                # Défilement secteurs : on a max 11 secteurs (1 par GICS), reveal par paire PEA+CTO
-                # Le plus grand des 2 panels donne le rythme
+                # ── SECTION 4 : SECTEURS (défilement 0.3s + hold 3s) ──
                 n_sec_pea = min(len(rk.sec_pea), 11)
                 n_sec_cto = min(len(rk.sec_cto), 11)
                 n_sec_max = max(n_sec_pea, n_sec_cto)
+                sectors_frames = []
                 for v in range(1, n_sec_max + 1):
-                    result["frames"].append(shot(
+                    sectors_frames.append(shot(
                         html_sectors(rk, snapshot, period_fr,
                                      visible_pea=min(v, n_sec_pea),
                                      visible_cto=min(v, n_sec_cto)),
                         0.3
                     ))
-                # Hold final 3s sur la slide complète
-                result["frames"].append(shot(
+                sectors_frames.append(shot(
                     html_sectors(rk, snapshot, period_fr,
                                  visible_pea=n_sec_pea, visible_cto=n_sec_cto),
                     3.0
                 ))
+                result["sections"].append(("sectors", sectors_frames))
 
-                result["frames"].append(shot(html_cta(rk, snapshot, period_fr), 7.0))
+                # ── SECTION 5 : CTA finale (7s pour lecture confortable) ──
+                cta_frames = [shot(html_cta(rk, snapshot, period_fr), 7.0)]
+                result["sections"].append(("cta", cta_frames))
 
                 browser.close()
         except Exception as e:
@@ -1687,74 +1664,142 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
     t.start(); t.join()
     if result["error"]:
         raise result["error"]
-    return result["frames"]
+    return result["sections"]
 
 
-def assemble_mp4(frames: list[tuple[Path, float]], output: Path) -> None:
-    """Assemble PNG frames into PREMIUM MP4 H.264."""
-    list_file = output.parent / f"{output.stem}_list.txt"
-    total_duration = sum(d for _, d in frames)
+def _assemble_section_clip(frames: list[tuple[Path, float]], out_clip: Path) -> float:
+    """Encode une section en MP4 intermédiaire (preset rapide, CRF 18 = quasi-lossless).
+    Retourne la durée de la section."""
+    list_file = out_clip.parent / f"_{out_clip.stem}_list.txt"
+    section_duration = sum(d for _, d in frames)
     with open(list_file, "w", encoding="utf-8") as f:
         for path, dur in frames:
             f.write(f"file '{path.resolve()}'\n")
             f.write(f"duration {dur:.3f}\n")
         f.write(f"file '{frames[-1][0].resolve()}'\n")
 
+    cmd = [
+        FFMPEG_BIN, "-y", "-loglevel", "error",
+        "-f", "concat", "-safe", "0", "-i", str(list_file),
+        "-vsync", "vfr",
+        "-pix_fmt", "yuv420p",
+        "-c:v", "libx264",
+        "-preset", "fast",  # encodage rapide pour la pass intermédiaire
+        "-crf", "18",       # quasi-lossless (perte de qualité négligeable au final encoding)
+        "-r", str(VIDEO_FPS),
+        "-t", f"{section_duration:.3f}",
+        str(out_clip),
+    ]
+    subprocess.run(cmd, check=True)
+    list_file.unlink(missing_ok=True)
+    return section_duration
+
+
+def assemble_mp4(sections: list[tuple[str, list[tuple[Path, float]]]], output: Path) -> None:
+    """🆕 v7 — Assemble PNG frames into MP4 with xfade transitions between sections.
+
+    Workflow :
+      1. Encode chaque section en MP4 intermédiaire (concat demuxer + preset fast)
+      2. Chaîne les sections avec xfade (filter_complex) + applique musique/fade/vignette
+    """
+    tmp_root = output.parent
+    section_clips: list[tuple[Path, float]] = []
+
+    log.info("   📦 Étape 1 : encodage des %d sections en MP4 intermédiaires…", len(sections))
+    for name, frames in sections:
+        clip_path = tmp_root / f"_section_{name}_{output.stem}.mp4"
+        duration = _assemble_section_clip(frames, clip_path)
+        log.info("      ✓ %s : %d frames · %.1fs", name, len(frames), duration)
+        section_clips.append((clip_path, duration))
+
+    total_duration_no_xfade = sum(d for _, d in section_clips)
+    n_transitions = len(section_clips) - 1
+    total_duration = total_duration_no_xfade - (n_transitions * XFADE_DURATION)
+    log.info("   📐 Durée finale après xfade : %.1fs (avant : %.1fs · %d transitions × %.1fs)",
+             total_duration, total_duration_no_xfade, n_transitions, XFADE_DURATION)
+
     has_music = MUSIC_FILE.exists() and MUSIC_FILE.is_file()
     if has_music:
         log.info("   🎵 Musique trouvée → %s", MUSIC_FILE)
     else:
-        log.info("   🔇 Pas de musique (assets/music.mp3 absent) → piste silencieuse AAC")
+        log.info("   🔇 Pas de musique → piste silencieuse AAC")
 
     fade_out_start = max(0, total_duration - VIDEO_FADE_OUT)
+
+    # ── Build ffmpeg command : inputs + filter_complex avec xfade en cascade ──
+    log.info("   🎬 Étape 2 : assemblage final avec xfade transitions…")
+    cmd = [FFMPEG_BIN, "-y", "-loglevel", "error"]
+
+    # Inputs : tous les clips de section
+    for clip, _ in section_clips:
+        cmd.extend(["-i", str(clip)])
+
+    # Input audio (musique ou silence)
+    n_video_inputs = len(section_clips)
+    if has_music:
+        cmd.extend(["-stream_loop", "-1", "-i", str(MUSIC_FILE.absolute())])
+    else:
+        cmd.extend(["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100"])
+    audio_input_idx = n_video_inputs
+
+    # ── Build filter_complex pour xfade en cascade ──
+    # Format : [0:v][1:v]xfade=transition=fade:duration=D:offset=O1[v01];
+    #          [v01][2:v]xfade=transition=fade:duration=D:offset=O2[v012]; ...
+    filters = []
+    cumulative_offset = 0.0
+    last_label = "[0:v]"
+    for i in range(1, n_video_inputs):
+        # offset = somme des durées précédentes - sommes des transitions précédentes
+        cumulative_offset += section_clips[i - 1][1] - XFADE_DURATION
+        new_label = f"[vx{i}]"
+        filters.append(
+            f"{last_label}[{i}:v]xfade=transition=fade:duration={XFADE_DURATION}:"
+            f"offset={cumulative_offset:.3f}{new_label}"
+        )
+        last_label = new_label
+
+    # Apply final effects on the merged video : fade out + vignette
     v_filter_parts = []
     if VIDEO_FADE_IN > 0:
         v_filter_parts.append(f"fade=t=in:st=0:d={VIDEO_FADE_IN}")
     v_filter_parts.append(f"fade=t=out:st={fade_out_start:.3f}:d={VIDEO_FADE_OUT}")
     if VIGNETTE:
         v_filter_parts.append("vignette=angle=0.5")
-    v_filter = ",".join(v_filter_parts)
-
-    cmd = [
-        FFMPEG_BIN, "-y", "-loglevel", "error",
-        "-f", "concat", "-safe", "0", "-i", str(list_file),
-    ]
-
-    if has_music:
-        cmd.extend([
-            "-stream_loop", "-1",
-            "-i", str(MUSIC_FILE.absolute()),
-        ])
-        audio_filter = (
-            f"volume={AUDIO_VOLUME},"
-            f"afade=t=in:st=0:d={AUDIO_FADE_IN},"
-            f"afade=t=out:st={fade_out_start:.3f}:d={AUDIO_FADE_OUT}"
-        )
+    if v_filter_parts:
+        filters.append(f"{last_label}{','.join(v_filter_parts)}[vout]")
+        video_label = "[vout]"
     else:
-        cmd.extend([
-            "-f", "lavfi",
-            "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
-        ])
-        audio_filter = "anull"
+        video_label = last_label
 
+    # Audio filter
+    audio_filter = (
+        f"volume={AUDIO_VOLUME},"
+        f"afade=t=in:st=0:d={AUDIO_FADE_IN},"
+        f"afade=t=out:st={fade_out_start:.3f}:d={AUDIO_FADE_OUT}"
+    ) if has_music else "anull"
+    filters.append(f"[{audio_input_idx}:a]{audio_filter}[aout]")
+
+    filter_complex = ";".join(filters)
+    cmd.extend(["-filter_complex", filter_complex])
     cmd.extend([
-        "-vsync", "vfr",
+        "-map", video_label,
+        "-map", "[aout]",
         "-pix_fmt", "yuv420p",
         "-c:v", "libx264",
         "-preset", VIDEO_PRESET,
         "-crf", str(VIDEO_CRF),
-        "-vf", v_filter,
         "-c:a", "aac",
         "-b:a", AUDIO_BITRATE,
-        "-af", audio_filter,
         "-t", f"{total_duration:.3f}",
-        "-shortest",
         "-movflags", "+faststart",
         str(output),
     ])
 
     subprocess.run(cmd, check=True)
-    list_file.unlink(missing_ok=True)
+
+    # Cleanup : supprime les clips intermédiaires
+    for clip, _ in section_clips:
+        clip.unlink(missing_ok=True)
 
 
 def auto_download_music() -> None:
@@ -1797,15 +1842,18 @@ def make_video(rk: Rankings, snapshot: str, period_fr: str, suffix: str) -> Path
 
     auto_download_music()
 
-    log.info("\n🎬  Génération de la vidéo MP4…")
+    log.info("\n🎬  Génération de la vidéo MP4 (avec transitions xfade)…")
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
-        frames = render_frames_to_disk(rk, snapshot, period_fr, tmp_dir)
-        log.info("   %d frames rendues", len(frames))
-        assemble_mp4(frames, output)
+        sections = render_frames_to_disk(rk, snapshot, period_fr, tmp_dir)
+        n_frames_total = sum(len(frames) for _, frames in sections)
+        log.info("   %d frames rendues dans %d sections", n_frames_total, len(sections))
+        assemble_mp4(sections, output)
 
     size_mb = output.stat().st_size / (1024 * 1024)
-    duration = sum(d for _, d in frames)
+    total_dur_raw = sum(sum(d for _, d in frames) for _, frames in sections)
+    n_trans = len(sections) - 1
+    duration = total_dur_raw - n_trans * XFADE_DURATION
     log.info("✅  vidéo générée → %s  (%.1f MB · %.1fs)", output, size_mb, duration)
     return output
 
@@ -1889,15 +1937,13 @@ def send_webhook(video_path: Path, post_text: str, snapshot: str,
 # ═════════════════════════════════════════════════════════════════════
 
 def main() -> None:
-    banner("BRIEF MENSUEL EQUITY · GITHUB ACTIONS · PREMIUM v6", "═")
+    banner("BRIEF MENSUEL EQUITY · GITHUB ACTIONS · PREMIUM v7", "═")
 
     # ── 0. CHECK : doit-on run aujourd'hui ? ─────────────────────────
-    # Le cron déclenche les 1-4 du mois, mais on ne RUN que le premier jour ouvré.
     today = date.today()
-    force_run = _env_bool("FORCE_RUN", default=False)  # bypass pour tests manuels
+    force_run = _env_bool("FORCE_RUN", default=False)
 
     if not force_run and not is_first_business_day_of_month(today):
-        # Calcule quel est le bon jour
         d = date(today.year, today.month, 1)
         while d.weekday() >= 5:
             d += timedelta(days=1)
@@ -1910,10 +1956,10 @@ def main() -> None:
     if force_run:
         log.info("🔧  FORCE_RUN=true → bypass du check premier jour ouvré")
 
-    log.info("✅  Aujourd'hui = premier jour ouvré du mois (%s %s)",
+    log.info("✅  Aujourd'hui = premier jour ouvré (%s %s)",
              today, today.strftime("%A"))
 
-    # ── Validation des variables d'env critiques ─────────────────────
+    # ── Validation des variables d'env ───────────────────────────────
     if SEND_TO_WEBHOOK and not WEBHOOK_URL:
         log.error("❌  SEND_TO_WEBHOOK=true mais WEBHOOK_URL est vide.")
         log.error("    Configure le secret GitHub : Settings → Secrets → WEBHOOK_URL")
@@ -1923,8 +1969,8 @@ def main() -> None:
              TEST_MODE, N_TOP, N_TOP_VIDEO, N_SECTOR)
     log.info("  SEND_TO_WEBHOOK=%s  ·  LITTERBOX_EXPIRATION=%s",
              SEND_TO_WEBHOOK, LITTERBOX_EXPIRATION)
-    log.info("  VIDÉO   : %dx%d · CRF=%d · preset=%s · fade=%.1fs/%.1fs · vignette=%s",
-             VIDEO_W, VIDEO_H, VIDEO_CRF, VIDEO_PRESET, VIDEO_FADE_IN, VIDEO_FADE_OUT, VIGNETTE)
+    log.info("  VIDÉO   : %dx%d · CRF=%d · preset=%s · xfade=%.1fs · vignette=%s",
+             VIDEO_W, VIDEO_H, VIDEO_CRF, VIDEO_PRESET, XFADE_DURATION, VIGNETTE)
     log.info("  AUDIO   : %s · %s · fade=%.1fs/%.1fs · volume=%.1f",
              ("music.mp3" if MUSIC_FILE.exists() else "auto-download / silence AAC"),
              AUDIO_BITRATE, AUDIO_FADE_IN, AUDIO_FADE_OUT, AUDIO_VOLUME)
