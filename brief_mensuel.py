@@ -1468,7 +1468,7 @@ def _row_perf(rank: int, r: dict) -> str:
     perf_s  = fmt_signed_pct(perf)
     target  = fmt_signed_pct(r.get("target_pct"))
     div     = f"💰 {r['div_pct']:.1f}%" if r.get("div_pct", 0) > 0 else ""
-    name    = smart_trunc(r.get("name", ""), 26)
+    name    = smart_trunc(cap_name(r.get("name", "")), 26)
     alt     = "alt" if rank % 2 == 0 else ""
     return f"""
 <div class="row {alt}">
@@ -1497,7 +1497,7 @@ def _row_conv(rank: int, r: dict) -> str:
     target  = fmt_signed_pct(r.get("target_pct"))
     score   = r.get("total_pct")
     score_s = fmt_signed_pct(score)
-    name    = smart_trunc(r.get("name", ""), 26)
+    name    = smart_trunc(cap_name(r.get("name", "")), 26)
     alt     = "alt" if rank % 2 == 0 else ""
     return f"""
 <div class="row {alt}">
@@ -1583,7 +1583,7 @@ def _sec_rows(sec_df: pd.DataFrame, max_rows: int = 8, visible: int | None = Non
         label, emoji = get_sector_display(s)
         score   = fmt_signed_pct(r.get("total_pct"))
         score_c = perf_class(r.get("total_pct"))
-        name    = smart_trunc(r.get("name", ""), 22)
+        name    = smart_trunc(cap_name(r.get("name", "")), 22)
         flag    = get_flag(r["ticker"])
         # ⭐ NOM D'ENTREPRISE EN AVANT, ticker en petit dessous
         out += f"""
