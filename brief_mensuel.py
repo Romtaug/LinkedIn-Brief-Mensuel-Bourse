@@ -1048,7 +1048,7 @@ def build_linkedin_post(rk: Rankings, period_fr: str, prev_month_fr: str,
         val   = f"{r['perf_1m']:+.1f}%" if pd.notna(r.get("perf_1m")) else "—"
 
         # ⭐ NOM D'ENTREPRISE EN AVANT (sans lien : tickers non cliquables)
-        return f"{medal} {name}  📈 {val}  ·  {flag} {r['ticker']} {elig}"
+        return f"{medal} {name}  📈 {val}  ·  {flag}\u2060 {r['ticker']} {elig}"
 
     # ── Format ticker (Top 5 potentiel) — sans lien ──────────────────
     def _row_pot(r: dict, rank: int) -> str:
@@ -1060,7 +1060,7 @@ def build_linkedin_post(rk: Rankings, period_fr: str, prev_month_fr: str,
         stars = reco_stars(r.get("reco_mean"))
 
         # ⭐ NOM D'ENTREPRISE EN AVANT (sans lien : tickers non cliquables)
-        return f"{medal} {name}  🎯 {score}  {stars}  ·  {flag} {r['ticker']} {elig}"
+        return f"{medal} {name}  🎯 {score}  {stars}  ·  {flag}\u2060 {r['ticker']} {elig}"
 
     # ── Format ticker secteur (1 ligne sans lien, plus compact) ──────
     def _row_sec(r: dict) -> str:
@@ -1070,7 +1070,7 @@ def build_linkedin_post(rk: Rankings, period_fr: str, prev_month_fr: str,
         name = smart_trunc(cap_name(r.get("name", "")), 22)
         elig = "✅PEA" if r.get("pea") else "🌍CTO"
         # ⭐ NOM D'ENTREPRISE EN AVANT, pas de lien (déjà dans Top 5+5)
-        return f"{emoji} {sec_label} · {name} {score} · {flag} {r['ticker']} {elig}"
+        return f"{emoji} {sec_label} · {name} {score} · {flag}\u2060 {r['ticker']} {elig}"
 
     # ── Build sections ───────────────────────────────────────────────
     perf_rows = "\n\n".join(_row_perf(r.to_dict(), i)
