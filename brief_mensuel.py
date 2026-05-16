@@ -1271,6 +1271,20 @@ body {
 .cta-quiz-opt { font-size:18px; color:var(--text-mid); }
 .cta-quiz-opt b { color:var(--blue); margin-right:14px;
   font-family:'Inter'; font-weight:800; }
+
+/* Réactions LinkedIn (style natif) */
+.cta-reactions { display:flex; justify-content:center; gap:48px;
+  margin-bottom:24px; padding-bottom:24px;
+  border-bottom:1px solid var(--grid); }
+.reaction-item { display:flex; flex-direction:column; align-items:center; gap:6px; }
+.reaction-emoji { font-size:54px; line-height:1; }
+.reaction-label { color:var(--text-mid); font-size:13px;
+  letter-spacing:1.5px; text-transform:uppercase; font-weight:600; }
+
+/* Hint sous la question */
+.cta-quiz-hint { color:var(--text-mid); font-size:17px;
+  margin-top:14px; font-style:italic; line-height:1.5; }
+
 .cta-disc { color:var(--dim); font-size:13px; margin-top:35px;
   font-style:italic; line-height:1.6; }
 
@@ -1562,7 +1576,7 @@ def html_cta(rk: Rankings, snapshot: str, period_fr: str) -> str:
       <div class="desc">Diversification Europe. Complément naturel du S&amp;P 500.</div>
     </div>
   </div>
-<div class="cta-quiz">
+  <div class="cta-quiz">
     <div class="cta-reactions">
       <div class="reaction-item">
         <div class="reaction-emoji">👍</div>
