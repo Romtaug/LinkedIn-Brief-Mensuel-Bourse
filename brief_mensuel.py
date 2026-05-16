@@ -12,7 +12,7 @@
     7. Commit snapshots dans le repo (gestion historique)
 
   🆕 v7 — Transitions xfade entre sections (cover → perf → conv → sec → cta)
-  🆕 v7 — Tri uniforme : Top Potentiel/Conviction par total_pct desc partout
+  🆕 v7 — Tri uniforme : Top Potentiel/PREDICTION par total_pct desc partout
   🆕 v7 — CSS .cta-disc fixé
   
   📅 PLANIFICATION :
@@ -375,8 +375,79 @@ _STOXX_NATIONAL = (
        "OIZ.IR","RYA.IR","SK3.IR"]
     + ["ALTR.LS","BCP.LS","COR.LS","CTT.LS","EDP.LS","EDPR.LS","GALP.LS","IBS.LS",
        "JMT.LS","MOTA.LS","NOS.LS","NVG.LS","REN.LS","RAM.LS","SEM.LS","SON.LS"]
+    # WIG 20 — Pologne .WA (PEA, marché EEE)
+    + ["ALE.WA","ALR.WA","BDX.WA","CDR.WA","CPS.WA","DNP.WA","JSW.WA","KGH.WA",
+       "KRU.WA","KTY.WA","LPP.WA","MBK.WA","OPL.WA","PCO.WA","PEO.WA","PGE.WA",
+       "PKN.WA","PKO.WA","PZU.WA","SPL.WA"]
+    # ASE — Grèce .AT (PEA, marché EEE)
+    + ["AEGN.AT","ALPHA.AT","ARAIG.AT","BELA.AT","CENER.AT","ELPE.AT","ETE.AT",
+       "EUROB.AT","EXAE.AT","GEKTERNA.AT","HTO.AT","JUMBO.AT","LAMDA.AT",
+       "METLEN.AT","MOH.AT","MYTIL.AT","OPAP.AT","OTE.AT","PPC.AT","TPEIR.AT",
+       "SARANTI.AT","TENERGY.AT","VIO.AT"]
 )
 STOXX = sorted(set(_STOXX_NATIONAL))
+
+
+# ═════════════════════════════════════════════════════════════════════
+#  4bis. UNIVERS CTO INTERNATIONAL (hors US, hors UE)
+# ═════════════════════════════════════════════════════════════════════
+# Tickers Yahoo Finance suffixes :
+#   .T   → Tokyo (Nikkei)
+#   .TO  → Toronto (TSX)
+#   .AX  → Sydney (ASX)
+#   .HK  → Hong Kong (Hang Seng)
+
+# Nikkei 225 — Japon (top ~100 actions les plus liquides)
+NIKKEI = [
+    "7203.T","6758.T","9984.T","6861.T","8035.T","7974.T","6098.T","8306.T",
+    "9432.T","6501.T","4063.T","4543.T","6981.T","6594.T","6857.T","6902.T",
+    "6367.T","6273.T","6326.T","4502.T","4503.T","4519.T","4523.T","4568.T",
+    "4661.T","4901.T","6201.T","6301.T","6302.T","6305.T","6471.T","6503.T",
+    "6504.T","6506.T","6508.T","6701.T","6702.T","6724.T","6752.T","6753.T",
+    "6762.T","6770.T","6841.T","6920.T","6954.T","7011.T","7012.T","7013.T",
+    "7201.T","7211.T","7261.T","7267.T","7269.T","7270.T","7272.T","7733.T",
+    "7735.T","7741.T","7751.T","7752.T","7832.T","8001.T","8002.T","8015.T",
+    "8031.T","8053.T","8058.T","8264.T","8267.T","8308.T","8309.T","8316.T",
+    "8411.T","8591.T","8601.T","8604.T","8630.T","8725.T","8750.T","8766.T",
+    "8795.T","8801.T","8802.T","8830.T","9001.T","9005.T","9007.T","9009.T",
+    "9020.T","9021.T","9101.T","9104.T","9202.T","9301.T","9433.T","9501.T",
+    "9502.T","9503.T","9531.T","9602.T","9613.T",
+]
+
+# TSX 60 — Canada
+TSX60 = [
+    "RY.TO","TD.TO","BNS.TO","BMO.TO","CM.TO","NA.TO","CNR.TO","CP.TO","ENB.TO",
+    "TRP.TO","SU.TO","CNQ.TO","CVE.TO","IMO.TO","MFC.TO","SLF.TO","GWO.TO",
+    "BCE.TO","T.TO","RCI-B.TO","SHOP.TO","ATD.TO","MG.TO","GIB-A.TO","OTEX.TO",
+    "CSU.TO","TRI.TO","ABX.TO","AEM.TO","K.TO","WPM.TO","FNV.TO","FFH.TO",
+    "BAM.TO","GIL.TO","NTR.TO","POW.TO","IFC.TO","FTS.TO","EMA.TO","H.TO",
+    "AQN.TO","CCO.TO","NXE.TO","TECK-B.TO","FM.TO","IVN.TO","L.TO","EMP-A.TO",
+    "DOL.TO","QSR.TO","RBA.TO","WCN.TO","WSP.TO","TFII.TO","CAE.TO","BIP-UN.TO",
+    "BEP-UN.TO",
+]
+
+# ASX 50 — Australie (top large-cap)
+ASX50 = [
+    "BHP.AX","CSL.AX","CBA.AX","NAB.AX","ANZ.AX","WBC.AX","MQG.AX","WES.AX",
+    "WOW.AX","COL.AX","RIO.AX","TLS.AX","GMG.AX","FMG.AX","TCL.AX","STO.AX",
+    "ALL.AX","REA.AX","COH.AX","BXB.AX","ASX.AX","SUN.AX","QBE.AX","IAG.AX",
+    "S32.AX","JBH.AX","MIN.AX","NEM.AX","ORG.AX","RMD.AX","PLS.AX","EVN.AX",
+    "JHX.AX","AGL.AX","ORI.AX","AMP.AX","TPG.AX","NWS.AX","MFG.AX","TWE.AX",
+    "BSL.AX","ALD.AX","AZJ.AX","NXT.AX","A2M.AX","SCG.AX","IGO.AX","SOL.AX",
+    "LLC.AX","DXS.AX",
+]
+
+# Hang Seng 50 — Hong Kong (large-cap chinoises et HK)
+HSI = [
+    "0700.HK","0941.HK","1299.HK","0939.HK","0005.HK","0388.HK","0883.HK",
+    "0001.HK","0016.HK","0011.HK","0027.HK","0066.HK","0101.HK","0175.HK",
+    "0267.HK","0288.HK","0291.HK","0386.HK","0688.HK","0762.HK","0823.HK",
+    "0857.HK","0960.HK","0992.HK","1038.HK","1044.HK","1093.HK","1109.HK",
+    "1113.HK","1177.HK","1211.HK","1378.HK","1810.HK","1928.HK","1972.HK",
+    "2018.HK","2020.HK","2269.HK","2313.HK","2318.HK","2319.HK","2331.HK",
+    "2382.HK","2388.HK","2628.HK","3328.HK","3690.HK","3988.HK","9618.HK",
+    "9888.HK","9988.HK","9999.HK",
+]
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -431,6 +502,8 @@ FLAG = {
     ".PA":"🇫🇷", ".DE":"🇩🇪", ".AS":"🇳🇱", ".BR":"🇧🇪", ".MI":"🇮🇹",
     ".MC":"🇪🇸", ".LS":"🇵🇹", ".OL":"🇳🇴", ".ST":"🇸🇪", ".HE":"🇫🇮",
     ".CO":"🇩🇰", ".VI":"🇦🇹", ".IR":"🇮🇪", ".SW":"🇨🇭", ".L":"🇬🇧",
+    ".WA":"🇵🇱", ".AT":"🇬🇷",
+    ".T":"🇯🇵",  ".TO":"🇨🇦", ".AX":"🇦🇺", ".HK":"🇭🇰",
 }
 
 def get_flag(ticker: str) -> str:
@@ -454,6 +527,7 @@ GF_EXCHANGE = {
     ".SW": "SWX",  ".L":  "LON",  ".ST": "STO",  ".HE": "HEL",
     ".CO": "CPH",  ".OL": "OSL",  ".VI": "VIE",  ".WA": "WSE",
     ".AT": "ATH",
+    ".T":  "TYO",  ".TO": "TSE",  ".AX": "ASX",  ".HK": "HKG",
 }
 
 US_EX_MAP = {
@@ -794,26 +868,29 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
     period   = datetime.now().strftime("%B %Y").upper()
     suffix   = "_test" if TEST_MODE else ""
 
-    all_us = list(dict.fromkeys(SP500))
-    all_eu = list(dict.fromkeys(STOXX + SBF120_MID))
-    all_de = list(dict.fromkeys(DAX + MDAX))
+    all_us   = list(dict.fromkeys(SP500))
+    all_eu   = list(dict.fromkeys(STOXX + SBF120_MID))
+    all_de   = list(dict.fromkeys(DAX + MDAX))
+    all_intl = list(dict.fromkeys(NIKKEI + TSX60 + ASX50 + HSI))
 
     if TEST_MODE:
         sp500_lst = all_us[:N_TICKERS_TEST]
         stoxx_lst = all_eu[:N_TICKERS_TEST]
         dax_lst   = all_de[:N_TICKERS_TEST]
+        intl_lst  = all_intl[:N_TICKERS_TEST]
     else:
-        sp500_lst, stoxx_lst, dax_lst = all_us, all_eu, all_de
+        sp500_lst, stoxx_lst, dax_lst, intl_lst = all_us, all_eu, all_de, all_intl
 
-    n_total = len(sp500_lst) + len(stoxx_lst) + len(dax_lst)
-    log.info("\n📡  Fetch yfinance  (%d tickers : US=%d EU=%d DE=%d)",
-             n_total, len(sp500_lst), len(stoxx_lst), len(dax_lst))
+    n_total = len(sp500_lst) + len(stoxx_lst) + len(dax_lst) + len(intl_lst)
+    log.info("\n📡  Fetch yfinance  (%d tickers : US=%d EU=%d DE=%d INTL=%d)",
+             n_total, len(sp500_lst), len(stoxx_lst), len(dax_lst), len(intl_lst))
 
     t0 = time.time()
     rows = (
         fetch_universe(sp500_lst, "SP500")
         + fetch_universe(stoxx_lst, "STOXX")
         + fetch_universe(dax_lst,   "DAX")
+        + fetch_universe(intl_lst,  "INTL")
     )
     elapsed = time.time() - t0
 
@@ -821,9 +898,10 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
         raise RuntimeError("❌ Aucune data récupérée — vérifie connexion/yfinance/rate limit")
 
     stats = pd.Series([r["market"] for r in rows]).value_counts().to_dict()
-    log.info("  → %d/%d lignes valides en %.1fs  (US=%d EU=%d DE=%d)",
+    log.info("  → %d/%d lignes valides en %.1fs  (US=%d EU=%d DE=%d INTL=%d)",
              len(rows), n_total, elapsed,
-             stats.get("SP500", 0), stats.get("STOXX", 0), stats.get("DAX", 0))
+             stats.get("SP500", 0), stats.get("STOXX", 0),
+             stats.get("DAX", 0), stats.get("INTL", 0))
 
     df = (pd.DataFrame(rows)
             .sort_values("total_pct", ascending=False)
@@ -865,7 +943,7 @@ def export_xlsx(df: pd.DataFrame, snapshot: str, suffix: str) -> Path:
         df.dropna(subset=["perf_1m"]).sort_values("perf_1m", ascending=False).to_excel(
             w, sheet_name="By Perf 1m", index=False)
         df.dropna(subset=["reco_mean"]).sort_values("reco_mean").to_excel(
-            w, sheet_name="By Conviction", index=False)
+            w, sheet_name="By PREDICTION", index=False)
         best_per_sec.to_excel(w, sheet_name="By Sector", index=False)
 
     log.info("💾  xlsx 6 onglets → %s", path)
@@ -1037,7 +1115,7 @@ def build_linkedin_post(rk: Rankings, period_fr: str, prev_month_fr: str,
     # ── POST ─────────────────────────────────────────────────────────
     n_disp = n_actions_display(rk.n_total)
     post = f"""\
-{bench_line}🚨 {n_disp} actions passées au crible ce mois-ci.
+{bench_line}🚨 {n_disp} actions analysées ce mois-ci.
 
 85% des fonds gérés activement se font battre par leur indice sur 10 ans.
 Frais, biais, hasard : tout joue contre toi en stock-picking pur.
@@ -1064,20 +1142,20 @@ Score = upside 12 mois + rendement dividende.
 
 {BAR_S}
 
-📂 BEST PAR SECTEUR GICS
+📂 BEST PAR SECTEUR
 Aucun secteur ne domine 2 décennies de suite. Diversifie.
 
 {sec_rows}
 
 {BAR_S}
 
-🎯 RÈGLE D'OR + DIVERSIFICATION
+🎯 RÈGLE D'OR
 SOCLE (50-60%) = 2 ETF mondiaux. Tu copies le marché.
 🇺🇸 ETF S&P 500  {ETF_SP500_URL}
 🇪🇺 ETF STOXX 600  {ETF_STOXX_URL}
 FUN (40-50% max) = stock-picking diversifié.
-🔀 Vise 1 action par secteur GICS minimum : Tech, Finance, Santé, Industrie...
-Quand un secteur baisse, un autre compense. C'est mathématique, pas magique.
+🔀 Vise 1 action par secteur minimum : Tech, Finance, Santé, Industrie...
+Quand un secteur baisse, un autre compense.
 
 {BAR_S}
 
@@ -1357,6 +1435,12 @@ def html_cover(rk: Rankings, snapshot: str, period_fr: str, frame: int = 3) -> s
   <div class="idx-pill">STOXX EUROPE</div>
   <div class="idx-pill">SBF 120</div>
   <div class="idx-pill">FTSE 100</div>
+  <div class="idx-pill">WIG 20</div>
+  <div class="idx-pill">ASE</div>
+  <div class="idx-pill">NIKKEI 225</div>
+  <div class="idx-pill">TSX 60</div>
+  <div class="idx-pill">ASX 50</div>
+  <div class="idx-pill">HANG SENG</div>
 </div>
 """
 
@@ -1485,7 +1569,7 @@ def html_conv(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> str:
         rows_pea += _row_conv(i+1, pea_data[i]) if (i < visible and i < len(pea_data)) else _row_hidden()
         rows_cto += _row_conv(i+1, cto_data[i]) if (i < visible and i < len(cto_data)) else _row_hidden()
     body = f"""<div class="body">
-  <div class="dual-title">TOP {N_TOP_VIDEO} <span class="or">CONVICTION</span></div>
+  <div class="dual-title">TOP {N_TOP_VIDEO} <span class="or">PREDICTION</span></div>
   <div class="dual-sub">Consensus analystes (★★★★★ = Achat fort)  ·  Filtre : potentiel total &gt; 0  ·  Score = cible + dividende</div>
   <div class="dual-grid">
     <div class="panel"><div class="panel-head pea">
@@ -1496,7 +1580,7 @@ def html_conv(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> str:
       <div class="panel-info">{rk.n_cto_total} VALEURS</div></div>{rows_cto}</div>
   </div>
 </div>"""
-    return _wrap(body, f"CONVICTION · TOP {N_TOP_VIDEO}", snapshot, period_fr, rk.n_total)
+    return _wrap(body, f"PREDICTION · TOP {N_TOP_VIDEO}", snapshot, period_fr, rk.n_total)
 
 
 def _sec_rows(sec_df: pd.DataFrame, max_rows: int = 8, visible: int | None = None) -> str:
