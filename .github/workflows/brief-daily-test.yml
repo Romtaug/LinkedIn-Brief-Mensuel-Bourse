@@ -1,82 +1,110 @@
-name: 🧪 Brief Quotidien · TEST RÉEL
-
-# ─────────────────────────────────────────────────────────────────
-# MODE TEST QUOTIDIEN : poste tous les jours pour valider le pipeline
-# en conditions réelles, avec TOUS les tickers (1370 actions).
-# - TEST_MODE=false (prod : 1370 tickers)
-# - FORCE_RUN=true (bypass check premier jour ouvré)
-# - SEND_TO_WEBHOOK=true (envoie vers LinkedIn TEST)
-# 
-# ⚠️ ATTENTION : poster tous les jours sur LinkedIn peut déclencher
-# le filtre anti-spam de LinkedIn. À utiliser sur ton compte TEST,
-# pas sur ton compte principal.
-# ─────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+#  Brief Mensuel Equity — Workflow TEST
+#  ──────────────────────────────────────────────────────────────────────
+#  Lance le script en mode TEST (30 tickers mélangés SP500/STOXX/DAX/INTL)
+#  + envoi LinkedIn réel via Make.com webhook.
+#  Manuel uniquement (workflow_dispatch), pas de cron.
+#  Durée typique : 2-3 minutes.
+# ═══════════════════════════════════════════════════════════════════════
+name: "🧪 Brief Mensuel — TEST"
 
 on:
-  schedule:
-    # Tous les jours à 7h UTC (= 8h-9h Paris selon saison)
-    - cron: '0 7 * * *'
-
   workflow_dispatch:
     inputs:
       send_to_webhook:
-        description: 'Envoyer au webhook Make.com ?'
-        required: false
-        default: 'true'
+        description: "Envoyer à LinkedIn via Make.com ?"
         type: choice
-        options: ['true', 'false']
+        required: true
+        default: "true"
+        options:
+          - "true"
+          - "false"
 
 jobs:
-  brief-daily:
+  brief-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
+
+    concurrency:
+      group: brief-mensuel-test
+      cancel-in-progress: false
+
     permissions:
       contents: write
 
     steps:
-      - name: 📥 Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.12
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: "3.12"
+          cache: "pip"
 
-      - name: 📦 Install Python dependencies
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-v1
+
+      - name: Install ffmpeg (system)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install yfinance pandas requests-cache openpyxl tqdm requests pillow playwright imageio-ffmpeg
 
-      - name: 🌐 Install Playwright Chromium
+      - name: Install Playwright Chromium
         run: |
           python -m playwright install chromium
           python -m playwright install-deps chromium
 
-      - name: 🎬 Install ffmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
-      - name: 🚀 Run Brief Quotidien (TEST RÉEL · 1370 tickers)
+      - name: Run brief (TEST MODE = 30 tickers)
         env:
+          TEST_MODE: "true"
+          FORCE_RUN: "true"
+          SEND_TO_WEBHOOK: ${{ github.event.inputs.send_to_webhook }}
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
           CODE_PARRAINAGE: ${{ secrets.CODE_PARRAINAGE }}
           PARRAINAGE_URL: ${{ secrets.PARRAINAGE_URL }}
-          # ⚡ TEST QUOTIDIEN : prod (1370 tickers) + force run + send
-          TEST_MODE: 'false'
-          FORCE_RUN: 'true'
-          SEND_TO_WEBHOOK: ${{ github.event.inputs.send_to_webhook || 'true' }}
-        run: python brief_mensuel.py
+        run: |
+          echo "🧪 Lancement du brief en mode TEST (30 tickers)"
+          python brief_mensuel.py
 
-      - name: 📤 Upload outputs
+      - name: Upload artifacts (xlsx + post + video)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: brief-daily-${{ github.run_number }}
+          name: brief-test-outputs-${{ github.run_number }}
           path: |
-            out/*.mp4
-            out/*.txt
-            out/*.xlsx
+            out/
+            snapshots/
           retention-days: 7
-          if-no-files-found: warn
+
+      - name: Commit snapshots (si modifié)
+        if: success()
+        run: |
+          git config user.name  "Brief Bot"
+          git config user.email "bot@thermodata.fr"
+          git add snapshots/
+          if git diff --cached --quiet; then
+            echo "ℹ️ Aucun snapshot à committer"
+            exit 0
+          fi
+          git commit -m "🧪 Snapshot TEST $(date -u +%Y-%m-%d) [skip ci]"
+          # Retry push si conflit Git (autre workflow en parallèle)
+          for i in 1 2 3 4 5; do
+            if git push origin main; then
+              echo "✅ Push réussi (tentative $i)"
+              exit 0
+            fi
+            echo "⚠️ Push rejeté (tentative $i), rebase puis retry..."
+            git pull --rebase --autostash origin main || exit 1
+            sleep $((RANDOM % 15 + 5))
+          done
+          echo "❌ Push échoué après 5 tentatives"
+          exit 1
