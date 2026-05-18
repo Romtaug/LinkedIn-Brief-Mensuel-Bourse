@@ -1,102 +1,119 @@
-name: 📊 Brief Mensuel Bourse · PROD
-
-# ─────────────────────────────────────────────────────────────────
-# MODE PROD : tourne automatiquement le 1er jour ouvré de chaque mois
-# Le script Python vérifie en interne si on doit poster aujourd'hui
-# Configuration : TEST_MODE=false (1370 tickers), FORCE_RUN=false
-# ─────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════
+#  Brief Mensuel Equity — Workflow PROD
+#  ──────────────────────────────────────────────────────────────────────
+#  Cron : tous les 1-4 du mois à 7h UTC (9h Paris CEST / 8h Paris CET).
+#  Le script vérifie en interne s'il s'agit du premier jour ouvré du mois
+#  → si non, exit 0 propre. Cela permet d'avoir un filet de sécurité
+#  en cas de runner indisponible le jour J.
+#
+#  Univers complet (~1480 tickers : SP500 + STOXX + DAX + MDAX + SBF120 mid
+#  + WIG20 + ASE + Nikkei + TSX60 + ASX50 + HSI).
+#
+#  Durée typique : 20-30 minutes (fetch + encodage vidéo placebo).
+# ═══════════════════════════════════════════════════════════════════════
+name: "🚀 Brief Mensuel — PROD"
 
 on:
   schedule:
-    # Tous les jours du 1 au 4 du mois à 7h UTC (= 8h-9h Paris selon saison)
-    # Le script Python vérifie en interne si on doit RUN aujourd'hui
-    - cron: '0 7 1-4 * *'
-
-  # Lancement manuel depuis l'interface GitHub Actions
+    # Tous les 1, 2, 3, 4 du mois à 7h UTC (laisse 4 tentatives au check
+    # "premier jour ouvré" intégré au script — bypass propre si déjà run).
+    - cron: "0 7 1-4 * *"
   workflow_dispatch:
     inputs:
-      test_mode:
-        description: 'TEST_MODE (true = 40 actions, false = 1370 actions)'
-        required: false
-        default: 'false'
-        type: choice
-        options: ['true', 'false']
-      send_to_webhook:
-        description: 'Envoyer au webhook Make.com (publier sur LinkedIn) ?'
-        required: false
-        default: 'true'
-        type: choice
-        options: ['true', 'false']
       force_run:
-        description: 'Forcer le run (bypass check premier jour ouvré)'
-        required: false
-        default: 'false'
+        description: "Forcer le run même si pas le 1er jour ouvré"
         type: choice
-        options: ['true', 'false']
+        required: true
+        default: "false"
+        options:
+          - "false"
+          - "true"
 
 jobs:
-  brief:
+  brief-prod:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60   # Marge confortable pour fetch + encodage placebo
+
+    concurrency:
+      group: brief-mensuel-prod
+      cancel-in-progress: false
+
     permissions:
       contents: write
 
     steps:
-      - name: 📥 Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 🐍 Setup Python 3.12
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: "3.12"
+          cache: "pip"
 
-      - name: 📦 Install Python dependencies
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-v1
+
+      - name: Install ffmpeg (system)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install yfinance pandas requests-cache openpyxl tqdm requests pillow playwright imageio-ffmpeg
 
-      - name: 🌐 Install Playwright Chromium
+      - name: Install Playwright Chromium
         run: |
           python -m playwright install chromium
           python -m playwright install-deps chromium
 
-      - name: 🎬 Install ffmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
-      - name: 🚀 Run Brief Mensuel (PROD)
+      - name: Run brief (FULL UNIVERSE)
         env:
+          TEST_MODE: "false"
+          FORCE_RUN: ${{ github.event.inputs.force_run || 'false' }}
+          SEND_TO_WEBHOOK: "true"
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
           CODE_PARRAINAGE: ${{ secrets.CODE_PARRAINAGE }}
           PARRAINAGE_URL: ${{ secrets.PARRAINAGE_URL }}
-          TEST_MODE: ${{ github.event.inputs.test_mode || 'false' }}
-          SEND_TO_WEBHOOK: ${{ github.event.inputs.send_to_webhook || 'true' }}
-          FORCE_RUN: ${{ github.event.inputs.force_run || 'false' }}
-        run: python brief_mensuel.py
-
-      - name: 📸 Commit snapshots
-        if: success()
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add snapshots/ || true
-          if git diff --staged --quiet; then
-            echo "ℹ️  Pas de changements snapshots"
-          else
-            git commit -m "📸 Snapshot mensuel + rotation [skip ci]"
-            git push
-          fi
+          echo "🚀 Lancement du brief en mode PROD (univers complet)"
+          python brief_mensuel.py
 
-      - name: 📤 Upload outputs
+      - name: Upload artifacts (xlsx + post + video)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: brief-prod-${{ github.run_number }}
+          name: brief-prod-outputs-${{ github.run_number }}
           path: |
-            out/*.mp4
-            out/*.txt
-            out/*.xlsx
+            out/
+            snapshots/
           retention-days: 30
-          if-no-files-found: warn
+
+      - name: Commit snapshots (mensuels)
+        if: success()
+        run: |
+          git config user.name  "Brief Bot"
+          git config user.email "bot@thermodata.fr"
+          git add snapshots/
+          if git diff --cached --quiet; then
+            echo "ℹ️ Aucun snapshot à committer"
+            exit 0
+          fi
+          git commit -m "🚀 Snapshot PROD $(date -u +%Y-%m-%d) [skip ci]"
+          # Retry push robuste anti-conflit
+          for i in 1 2 3 4 5; do
+            if git push origin main; then
+              echo "✅ Push réussi (tentative $i)"
+              exit 0
+            fi
+            echo "⚠️ Push rejeté (tentative $i), rebase puis retry..."
+            git pull --rebase --autostash origin main || exit 1
+            sleep $((RANDOM % 15 + 5))
+          done
+          echo "❌ Push échoué après 5 tentatives"
+          exit 1
