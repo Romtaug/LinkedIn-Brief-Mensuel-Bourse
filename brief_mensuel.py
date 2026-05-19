@@ -13,7 +13,8 @@
 
   🆕 v10 — Changelog vs v7 :
     • Rate limit yfinance corrigé : 4 workers, benchmarks d'abord, sleep 15s
-    • Section secteurs renommée "TOP 10 PREDICTION PAR SECTEUR" (2 colonnes PEA+CTO)
+    • Section secteurs renommée "TOP 10 PRÉDICTION PAR SECTEUR" (10 secteurs GICS alignés PEA vs CTO côte à côte)
+    • Fix bug NaN dans liens BR : helper _safe_url() filtre None/NaN/"nan" pour ne pas afficher "BR : nan"
     • Défilement ligne par ligne aussi sur la section secteurs
     • Tickers avec 2 liens (BR + YF) dans Top 5 Perf + Top 5 Pred + Secteurs
     • Auto-linkify LinkedIn cassé via Zero-Width Space après le point
@@ -85,7 +86,10 @@ TEST_MODE          = _env_bool("TEST_MODE", default=True)
 N_TICKERS_TEST     = 30            # ← TOTAL en mode test (mélangé toutes zones)
 N_TOP              = 5             # Top 5 Perf + Top 5 Pred (post)
 N_TOP_VIDEO        = 10            # Top 10 dans la vidéo
-N_SECTOR_PER_COL   = 10            # 10 secteurs en PEA + 10 en CTO
+N_SECTOR_PER_COL   = 10            # (Legacy) 10 secteurs en PEA + 10 en CTO
+N_SECTORS_ALIGNED  = 11            # 11 secteurs GICS alignés PEA vs CTO côte à côte
+FILTER_BOURSO_ONLY = True          # ⚠️ Si True : on skip TOUS les tickers sans lien Boursorama
+                                   # (= filtre dur sur Japon, HK, Canada, Australie, Norvège, etc.)
 N_WORKERS          = 4             # ← 4 = sweet spot anti rate-limit yfinance
 SLEEP_BETWEEN_UNI  = 15            # secondes entre 2 univers (anti rate-limit)
 SLEEP_AFTER_BENCH  = 10            # secondes après les benchmarks avant fetch universe
@@ -712,6 +716,13 @@ def fetch_one(ticker: str, market: str, max_retries: int = 3) -> dict[str, Any] 
             except Exception:
                 pass
 
+            # ── FILTRE BOURSORAMA STRICT (si activé) ─────────────────
+            # Skip les tickers non couverts par Boursorama (Japon, HK, Canada, ASX, Norvège, etc.)
+            # → garantit que tous les tickers du brief auront un lien BR fonctionnel
+            bourso_link = boursorama_url(ticker)
+            if FILTER_BOURSO_ONLY and not bourso_link:
+                return None
+
             return {
                 "ticker": ticker,
                 "name": name,
@@ -731,7 +742,7 @@ def fetch_one(ticker: str, market: str, max_retries: int = 3) -> dict[str, Any] 
                 "perf_1m": round(perf_1m, 2) if perf_1m is not None else None,
                 "pea": is_pea(ticker),
                 "isin": isin or "",
-                "boursorama_link": boursorama_url(ticker),
+                "boursorama_link": bourso_link,
                 "yahoo_link":      yahoo_url(ticker),
                 "google_link":     google_finance_url(ticker, exchange),
             }
@@ -878,6 +889,27 @@ def reco_stars(reco_mean: Any) -> str:
     score = max(0, min(5, 6 - reco_mean))
     full = int(round(score))
     return "★" * full + "☆" * (5 - full)
+
+
+def _safe_url(v: Any) -> str | None:
+    """
+    Sanitize une URL venant du DataFrame.
+    
+    ⚠️  Quand boursorama_url() retourne None et que ça passe par pandas → NaN.
+    `bool(NaN) == True` donc `if url` ne suffit pas. Cette helper unifie le check :
+    None, NaN, "", "nan" → None.
+    """
+    if v is None: return None
+    try:
+        if isinstance(v, float) and pd.isna(v): return None
+    except (TypeError, ValueError):
+        pass
+    s = str(v).strip()
+    if not s or s.lower() in ("nan", "none", "null"):
+        return None
+    if not s.startswith("http"):
+        return None
+    return s
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -1136,6 +1168,11 @@ class Rankings:
         self.sec_pea = self._top_sectors(self.df_pea, N_SECTOR_PER_COL)
         self.sec_cto = self._top_sectors(self.df_cto, N_SECTOR_PER_COL)
 
+        # ── Sectors ALIGNÉS : comparaison côte à côte PEA vs CTO ─────
+        # Pour chaque secteur GICS : meilleur ticker PEA + meilleur ticker CTO.
+        # Tri par max(potentiel PEA, potentiel CTO) desc.
+        self.sec_aligned = self._sectors_aligned()
+
         # ── Top MÉLANGÉS PEA+CTO (pour le POST LinkedIn — Top 5) ─────
         self.top_perf_all = (df.dropna(subset=["perf_1m"])
                              .sort_values("perf_1m", ascending=False)
@@ -1171,33 +1208,104 @@ class Rankings:
                 .head(1).reset_index(drop=True)
                 .head(n))
 
+    def _sectors_aligned(self) -> list[dict]:
+        """
+        Retourne la liste des secteurs GICS alignés avec meilleur ticker PEA + meilleur ticker CTO.
+        
+        Pour chaque secteur GICS (11 au total) :
+          - Récupère le ticker PEA avec le plus gros total_pct
+          - Récupère le ticker CTO avec le plus gros total_pct
+          - Skip si les 2 sont absents
+        Trié par max(meilleur_PEA, meilleur_CTO) desc.
+        
+        Returns: [
+          {
+            "sector_fr": "Technologies de l'information",
+            "pea": {ticker, name, total_pct, ...} or None,
+            "cto": {ticker, name, total_pct, ...} or None,
+            "score_sort": max des potentiels (pour le tri),
+          },
+          ...
+        ]
+        """
+        # Tous les secteurs GICS connus (= valeurs de SECTOR_FR)
+        all_sectors = list(SECTOR_FR.values())
+        result: list[dict] = []
+
+        for sector_fr in all_sectors:
+            # Best PEA dans ce secteur (si présent)
+            pea_in_sec = self.df_pea[self.df_pea["sector_fr"] == sector_fr]
+            best_pea = None
+            if not pea_in_sec.empty:
+                best_pea = (pea_in_sec.sort_values("total_pct", ascending=False)
+                                       .iloc[0].to_dict())
+
+            # Best CTO dans ce secteur (si présent)
+            cto_in_sec = self.df_cto[self.df_cto["sector_fr"] == sector_fr]
+            best_cto = None
+            if not cto_in_sec.empty:
+                best_cto = (cto_in_sec.sort_values("total_pct", ascending=False)
+                                       .iloc[0].to_dict())
+
+            # Skip si les 2 sont vides (peu probable mais sécurité)
+            if best_pea is None and best_cto is None:
+                continue
+
+            # Score pour le tri = max des potentiels existants
+            scores = []
+            if best_pea is not None: scores.append(best_pea["total_pct"])
+            if best_cto is not None: scores.append(best_cto["total_pct"])
+
+            result.append({
+                "sector_fr": sector_fr,
+                "pea": best_pea,
+                "cto": best_cto,
+                "score_sort": max(scores) if scores else 0,
+            })
+
+        # Tri par score desc
+        result.sort(key=lambda x: x["score_sort"], reverse=True)
+        return result
+
 
 # ═════════════════════════════════════════════════════════════════════
 #  13. POST LINKEDIN — markdown-style FR avec split automatique
 # ═════════════════════════════════════════════════════════════════════
 
-def _row_perf_post(r: dict, rank: int) -> str:
-    """Formate une ligne du Top 5 PERF pour le POST (avec 2 liens BR + YF)."""
+def _build_links(r: dict, mode: str) -> str:
+    """
+    Construit la ligne de liens selon le mode :
+      - "br_yf"   : 🏛️ BR + 🔍 YF (2 liens)
+      - "br_only" : 🏛️ BR uniquement
+      - "none"    : pas de liens
+    """
+    if mode == "none":
+        return ""
+    bourso = _safe_url(r.get("boursorama_link"))
+    yahoo  = _safe_url(r.get("yahoo_link"))
+    parts = []
+    if bourso: parts.append(f"🏛️ BR : {bourso}")
+    if yahoo and mode == "br_yf": parts.append(f"🔍 YF : {yahoo}")
+    # Si pas de BR mais YF dispo (cas avec FILTER_BOURSO_ONLY=False), on garde YF en fallback
+    if not bourso and yahoo and mode == "br_only":
+        parts.append(f"🔍 YF : {yahoo}")
+    return ("\n↳ " + " · ".join(parts)) if parts else ""
+
+
+def _row_perf_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
+    """Formate une ligne du Top 5 PERF pour le POST."""
     flag   = get_flag(r["ticker"])
     medal  = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}.get(rank, f"{rank:02d}")
     name   = smart_trunc(cap_name(r.get("name", "")), 28)
     elig   = "✅PEA" if r.get("pea") else "🌍CTO"
     val    = f"{r['perf_1m']:+.1f}%" if pd.notna(r.get("perf_1m")) else "—"
     safe_t = safe_ticker(r["ticker"])
-
-    # Liens : Bourso si dispo + Yahoo toujours
-    bourso = r.get("boursorama_link")
-    yahoo  = r.get("yahoo_link")
-    parts = []
-    if bourso: parts.append(f"🏛️ BR : {bourso}")
-    if yahoo:  parts.append(f"🔍 YF : {yahoo}")
-    links = "\n↳ " + " · ".join(parts) if parts else ""
-
+    links  = _build_links(r, links_mode)
     return f"{medal} {name} 📈 {val} · {flag} {safe_t} {elig}{links}"
 
 
-def _row_pot_post(r: dict, rank: int) -> str:
-    """Formate une ligne du Top 5 POTENTIEL pour le POST (avec 2 liens + étoiles)."""
+def _row_pot_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
+    """Formate une ligne du Top 5 POTENTIEL pour le POST."""
     flag   = get_flag(r["ticker"])
     medal  = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}.get(rank, f"{rank:02d}")
     name   = smart_trunc(cap_name(r.get("name", "")), 24)
@@ -1205,14 +1313,7 @@ def _row_pot_post(r: dict, rank: int) -> str:
     score  = f"{r['total_pct']:+.1f}%"
     stars  = reco_stars(r.get("reco_mean"))
     safe_t = safe_ticker(r["ticker"])
-
-    bourso = r.get("boursorama_link")
-    yahoo  = r.get("yahoo_link")
-    parts = []
-    if bourso: parts.append(f"🏛️ BR : {bourso}")
-    if yahoo:  parts.append(f"🔍 YF : {yahoo}")
-    links = "\n↳ " + " · ".join(parts) if parts else ""
-
+    links  = _build_links(r, links_mode)
     return f"{medal} {name} 🎯 {score} {stars} · {flag} {safe_t} {elig}{links}"
 
 
@@ -1225,8 +1326,8 @@ def _row_sec_post(r: dict, with_2_links: bool = True) -> str:
     elig   = "✅PEA" if r.get("pea") else "🌍CTO"
     safe_t = safe_ticker(r["ticker"])
 
-    bourso = r.get("boursorama_link")
-    yahoo  = r.get("yahoo_link")
+    bourso = _safe_url(r.get("boursorama_link"))
+    yahoo  = _safe_url(r.get("yahoo_link"))
     parts = []
     if bourso: parts.append(f"🏛️ BR : {bourso}")
     if yahoo and with_2_links: parts.append(f"🔍 YF : {yahoo}")
@@ -1236,28 +1337,85 @@ def _row_sec_post(r: dict, with_2_links: bool = True) -> str:
     return f"{emoji} {sec_label} · {name} {score} · {flag} {safe_t} {elig}{links}"
 
 
+def _ticker_inline(r: dict | None, with_links: bool = True, label: str = "") -> str:
+    """
+    Formate un ticker en 1 ligne courte pour la section secteurs alignée.
+    
+    Args:
+        r : dict du ticker (None si pas de ticker côté concerné)
+        with_links : True = avec lien BR (priorité) ou YF en fallback, False = sans liens
+        label : "🇪🇺 PEA" ou "🌍 CTO"
+    
+    Returns:
+        "🇪🇺 PEA · Sanofi +28.5% · 🇫🇷 SAN.PA\\n     ↳ https://..."
+        OU "🇪🇺 PEA · —" si r est None
+    """
+    if r is None:
+        return f"{label} · —"
+    flag    = get_flag(r["ticker"])
+    name    = smart_trunc(cap_name(r.get("name", "")), 22)
+    score   = f"{r['total_pct']:+.1f}%"
+    safe_t  = safe_ticker(r["ticker"])
+    line1   = f"{label} · {name} {score} · {flag} {safe_t}"
+
+    if not with_links:
+        return line1
+
+    # Priorité Bourso, fallback Yahoo si pas de Bourso (avec _safe_url anti-NaN)
+    url = _safe_url(r.get("boursorama_link")) or _safe_url(r.get("yahoo_link"))
+    if not url:
+        return line1
+    return f"{line1}\n     ↳ {url}"
+
+
+def _block_sec_aligned_post(sector_data: dict, with_links: bool = True) -> str:
+    """
+    Formate un bloc secteur aligné pour le POST/COMMENTAIRE LinkedIn.
+    
+    Format :
+      💻 Tech. info.
+      🇪🇺 PEA · ASML Holding +24% · 🇳🇱 ASML.AS
+           ↳ https://www.boursorama.com/...
+      🌍 CTO · NVIDIA Corp +45% · 🇺🇸 NVDA
+           ↳ https://www.boursorama.com/...
+    """
+    sec_label, emoji = get_sector_display(sector_data["sector_fr"])
+    pea_line = _ticker_inline(sector_data.get("pea"), with_links=with_links, label="🇪🇺 PEA")
+    cto_line = _ticker_inline(sector_data.get("cto"), with_links=with_links, label="🌍 CTO")
+    return f"{emoji} {sec_label}\n{pea_line}\n{cto_line}"
+
+
 def _build_post_complete(rk: Rankings, period_fr: str, prev_month_fr: str) -> tuple[str, str]:
     """
-    Construit le post complet avec TOUT. Retourne (post, comment_section_secteurs).
+    Construit le post LinkedIn complet dans 1 SEUL post (jamais de commentaire).
     
-    Le post inclut TOUJOURS : hook + Top 5 Perf + Top 5 Pred + Règle d'or + CTA + parrainage + hashtags.
-    Le contenu "secteurs" est RETOURNÉ SÉPARÉMENT pour pouvoir le splitter en commentaire.
+    Stratégie progressive si dépasse 3000 chars :
+      Niveau 0 : Top 5 PERF & PRED en 2 liens (BR+YF) + 11 secteurs avec liens
+      Niveau 1 : Top 5 en 2 liens + 11 secteurs SANS liens (juste tickers)
+      Niveau 2 : Top 5 en BR_only + 11 secteurs sans liens
+      Niveau 3 : Top 5 PRED en BR_only (perf garde 2 liens) + secteurs sans
+      Niveau 4 : Hook court (drop "85% des fonds...")
+      Niveau 5 : Top 5 PRED sans liens + secteurs sans liens
+      Niveau 6 : Tout sans liens (sauf règle d'or qui garde ses 2 ETF)
+    
+    Retourne : (post, "") — le 2ème element comment_text est TOUJOURS vide
+    car le user a demandé 1 seul post (pas de split commentaire).
     """
     next_month_fr = _next_month_fr(period_fr)
 
-    # ── Ligne benchmark en tête (toujours en premier) ────────────────
+    # ── Ligne benchmark en tête ──────────────────────────────────────
     bench_line = ""
     if rk.benchmarks:
-        parts = []
+        bench_parts = []
         for bm in rk.benchmarks:
             perf = bm.get("perf_1m")
             if perf is not None:
-                parts.append(f"{bm['label']} {perf:+.1f}%")
-        if parts:
-            bench_line = f"📊 Marché en {prev_month_fr.lower()} : " + " · ".join(parts) + "\n\n"
+                bench_parts.append(f"{bm['label']} {perf:+.1f}%")
+        if bench_parts:
+            bench_line = f"📊 Marché en {prev_month_fr.lower()} : " + " · ".join(bench_parts) + "\n\n"
 
-    # ── Hook ─────────────────────────────────────────────────────────
-    hook = f"""\
+    # ── Hook normal & court ──────────────────────────────────────────
+    hook_normal = f"""\
 {bench_line}🚨 {N_ACTIONS_DISPLAY} actions analysées ce mois-ci.
 
 85% des fonds gérés activement se font battre par leur indice sur 10 ans.
@@ -1266,34 +1424,13 @@ Frais, biais, hasard : tout joue contre toi en stock-picking pur.
 Solution : ETF en socle, stock-picking pour le fun.
 Ce brief alimente la 2e partie."""
 
+    hook_court = f"""{bench_line}🚨 {N_ACTIONS_DISPLAY} actions analysées ce mois-ci.
+
+ETF en socle, stock-picking pour le fun. Le brief alimente la 2e partie."""
+
     BAR_S = "━" * 26
 
-    # ── Top 5 PERF (PEA+CTO mélangés, avec 2 liens chacun) ───────────
-    perf_rows = "\n\n".join(_row_perf_post(r.to_dict(), i)
-                            for i, (_, r) in enumerate(rk.top_perf_all.head(N_TOP).iterrows(), 1))
-
-    # ── Top 5 POTENTIEL (PEA+CTO mélangés, avec étoiles + 2 liens) ──
-    pot_rows = "\n\n".join(_row_pot_post(r.to_dict(), i)
-                           for i, (_, r) in enumerate(rk.top_conv_all.head(N_TOP).iterrows(), 1))
-
-    # ── Section secteurs : 2 sous-sections PEA + CTO ─────────────────
-    sec_pea_rows = "\n\n".join(_row_sec_post(r.to_dict(), with_2_links=True)
-                               for _, r in rk.sec_pea.iterrows())
-    sec_cto_rows = "\n\n".join(_row_sec_post(r.to_dict(), with_2_links=True)
-                               for _, r in rk.sec_cto.iterrows())
-
-    sectors_full = f"""\
-📂 TOP 10 PREDICTION PAR SECTEUR
-
-🇪🇺 PEA · ZONE EEE
-
-{sec_pea_rows}
-
-🌍 CTO · MONDIAL
-
-{sec_cto_rows}"""
-
-    # ── Règle d'or (compactée) ───────────────────────────────────────
+    # ── Règle d'or & CTA (toujours pareils) ──────────────────────────
     rule_dor = f"""\
 🎯 RÈGLE D'OR
 SOCLE (50-60%) = 2 ETF mondiaux.
@@ -1301,11 +1438,11 @@ SOCLE (50-60%) = 2 ETF mondiaux.
 🇪🇺 ETF STOXX 600 {ETF_STOXX_URL}
 FUN (40-50%) = stock-picking diversifié, 1 action / secteur min."""
 
-    # ── CTA + Parrainage + RDV + Hashtags ────────────────────────────
     cta_etc = f"""\
-💡 Instructif  ·  👏 Bravo  ·  ❤️ Adore
-💬 Et toi, quelle est ta stratégie d'investissement ?
-ETF · Stock-picking · Hybride ? Détaille en commentaire 👇
+💬 Choisis ta réaction selon ta stratégie :
+💡 Instructif = je suis 100% ETF
+👏 Bravo = je fais du stock-picking
+❤️ Adore = approche hybride ETF + stock-picking
 
 📌 Épingle  ·  🔁 Partage à un débutant en bourse
 
@@ -1318,8 +1455,15 @@ ETF · Stock-picking · Hybride ? Détaille en commentaire 👇
 #BriefMensuelBourse #Investissement #PEA #ETF #Bourse
 #Python #DataScience #YahooFinance #Boursorama #Prediction"""
 
-    # ── Assemblage : version A (TOUT dans le post) ───────────────────
-    post_with_sectors = f"""\
+    def _build(hook: str, perf_mode: str, pot_mode: str, sec_with_links: bool) -> str:
+        """Construit le post complet avec les paramètres de liens donnés."""
+        perf_rows = "\n\n".join(_row_perf_post(r.to_dict(), i, links_mode=perf_mode)
+                                for i, (_, r) in enumerate(rk.top_perf_all.head(N_TOP).iterrows(), 1))
+        pot_rows = "\n\n".join(_row_pot_post(r.to_dict(), i, links_mode=pot_mode)
+                               for i, (_, r) in enumerate(rk.top_conv_all.head(N_TOP).iterrows(), 1))
+        sec_blocks = "\n\n".join(_block_sec_aligned_post(s, with_links=sec_with_links)
+                                 for s in rk.sec_aligned[:N_SECTORS_ALIGNED])
+        return f"""\
 {hook}
 
 {BAR_S}
@@ -1340,7 +1484,9 @@ Score = cible 12m + div. ★★★★★ = consensus achat fort.
 
 {BAR_S}
 
-{sectors_full}
+📂 TOP {N_SECTORS_ALIGNED} PRÉDICTION PAR SECTEUR (PEA vs CTO)
+
+{sec_blocks}
 
 {BAR_S}
 
@@ -1350,127 +1496,38 @@ Score = cible 12m + div. ★★★★★ = consensus achat fort.
 
 {cta_etc}"""
 
-    # ── Assemblage : version B (post SANS secteurs + commentaire) ────
-    post_without_sectors = f"""\
-{hook}
+    # ── Stratégie progressive : on essaye chaque niveau jusqu'à rentrer ─
+    levels = [
+        # (description, hook, perf_mode, pot_mode, sec_with_links)
+        ("N0 : Top BR+YF + secteurs avec liens",   hook_normal, "br_yf",   "br_yf",   True),
+        ("N1 : Top BR+YF + secteurs sans liens",   hook_normal, "br_yf",   "br_yf",   False),
+        ("N2 : Top BR-only + secteurs sans liens", hook_normal, "br_only", "br_only", False),
+        ("N3 : Hook court + Top BR-only + sect sans liens", hook_court, "br_only", "br_only", False),
+        ("N4 : Hook court + Top PRED sans liens + sect sans liens", hook_court, "br_only", "none", False),
+        ("N5 : Hook court + Top PERF sans liens + sect sans liens", hook_court, "none", "none", False),
+    ]
 
-{BAR_S}
-📊 BRIEF BOURSE · {period_fr}
-{BAR_S}
+    final_post = ""
+    chosen_level = None
+    for desc, hook, pm, pp, swl in levels:
+        candidate = _build(hook, pm, pp, swl)
+        if len(candidate) <= LINKEDIN_POST_MAX:
+            final_post = candidate
+            chosen_level = desc
+            log.info("  ✅ Niveau retenu : %s (%d/%d chars)",
+                     desc, len(candidate), LINKEDIN_POST_MAX)
+            break
+        else:
+            log.info("  ⏭  %s : %d chars > %d → essai niveau suivant",
+                     desc, len(candidate), LINKEDIN_POST_MAX)
 
-📈 TOP 5 PERFORMANCES — {prev_month_fr}
-Le plus monté ce mois-ci (PEA+CTO).
+    if not final_post:
+        # Toutes les versions ont échoué — on tronque brutalement la dernière
+        final_post = candidate[:LINKEDIN_POST_MAX - 50] + "\n\n[Tronqué]"
+        log.error("❌ Toutes les versions dépassent 3000 chars — tronqué à %d", len(final_post))
 
-{perf_rows}
-
-{BAR_S}
-
-⭐ TOP 5 POTENTIEL (cible + dividende)
-Score = cible 12m + div. ★★★★★ = consensus achat fort.
-
-{pot_rows}
-
-{BAR_S}
-
-👇 TOP 10 PREDICTION PAR SECTEUR en 1er commentaire 👇
-
-{BAR_S}
-
-{rule_dor}
-
-{BAR_S}
-
-{cta_etc}"""
-
-    # ── Décision split : si v1 rentre, on l'utilise ; sinon split ────
-    if len(post_with_sectors) <= LINKEDIN_POST_MAX:
-        log.info("  ✅ Post complet rentre dans LinkedIn (%d/%d chars) — pas de split",
-                 len(post_with_sectors), LINKEDIN_POST_MAX)
-        return post_with_sectors, ""
-
-    log.info("  ⚠️  Post complet = %d chars > %d → SPLIT en post + commentaire",
-             len(post_with_sectors), LINKEDIN_POST_MAX)
-    log.info("  ✅ Post sans secteurs : %d/%d chars",
-             len(post_without_sectors), LINKEDIN_POST_MAX)
-
-    # ── Fallback cascade si encore trop long ─────────────────────────
-    final_post = post_without_sectors
-    if len(final_post) > LINKEDIN_POST_MAX:
-        log.warning("  ⚠️  Post sans secteurs encore trop long (%d > %d) — tronque le hook étendu",
-                    len(final_post), LINKEDIN_POST_MAX)
-        # Hook court : juste benchmarks + accroche actions (drop "85% des fonds..." + "Frais...")
-        hook_court = (
-            f"""{bench_line}🚨 {N_ACTIONS_DISPLAY} actions analysées ce mois-ci.
-
-ETF en socle, stock-picking pour le fun. Le brief alimente la 2e partie."""
-        )
-        final_post = f"""\
-{hook_court}
-
-{BAR_S}
-📊 BRIEF BOURSE · {period_fr}
-{BAR_S}
-
-📈 TOP 5 PERFORMANCES — {prev_month_fr}
-Le plus monté ce mois-ci (PEA+CTO).
-
-{perf_rows}
-
-{BAR_S}
-
-⭐ TOP 5 POTENTIEL (cible + dividende)
-Score = cible 12m + div. ★★★★★ = consensus achat fort.
-
-{pot_rows}
-
-{BAR_S}
-
-👇 TOP 10 PREDICTION PAR SECTEUR en 1er commentaire 👇
-
-{BAR_S}
-
-{rule_dor}
-
-{BAR_S}
-
-{cta_etc}"""
-        log.info("  ✓ Version ultra-compacte : %d chars", len(final_post))
-
-    if len(final_post) > LINKEDIN_POST_MAX:
-        # Vraiment impossible — on raise pour visibilité
-        log.error("❌ Même la version ultra-compacte fait %d chars > %d",
-                  len(final_post), LINKEDIN_POST_MAX)
-        raise RuntimeError(
-            f"Post trop long même en version ultra-compacte : {len(final_post)} chars. "
-            "Réduis N_TOP ou la longueur des liens Boursorama."
-        )
-
-    # Commentaire = section secteurs complète
-    # Si elle dépasse 1250 chars (limite commentaire), on dégrade à 1 lien par secteur
-    comment = sectors_full
-    if len(comment) > LINKEDIN_COMMENT_MAX:
-        log.info("  ⚠️  Section secteurs = %d chars > %d (limite commentaire) → 1 seul lien par ticker",
-                 len(comment), LINKEDIN_COMMENT_MAX)
-        sec_pea_compact = "\n\n".join(_row_sec_post(r.to_dict(), with_2_links=False)
-                                      for _, r in rk.sec_pea.iterrows())
-        sec_cto_compact = "\n\n".join(_row_sec_post(r.to_dict(), with_2_links=False)
-                                      for _, r in rk.sec_cto.iterrows())
-        comment = f"""\
-📂 TOP 10 PREDICTION PAR SECTEUR
-
-🇪🇺 PEA · ZONE EEE
-
-{sec_pea_compact}
-
-🌍 CTO · MONDIAL
-
-{sec_cto_compact}"""
-
-    if len(comment) > LINKEDIN_COMMENT_MAX:
-        log.warning("  ⚠️  Commentaire encore trop long (%d chars > %d) — il sera tronqué côté Make.com",
-                    len(comment), LINKEDIN_COMMENT_MAX)
-
-    return final_post, comment
+    # ⚠️ comment_text TOUJOURS vide (1 seul post demandé par le user)
+    return final_post, ""
 
 
 def build_linkedin_post(rk: Rankings, period_fr: str, prev_month_fr: str,
@@ -1619,20 +1676,47 @@ body {
 .reco-hold { color:var(--amber); } .reco-sell { color:#ff8855; }
 .reco-vsell { color:var(--red); } .reco-na { color:var(--dim); }
 
-/* Section secteurs — défile aussi ligne par ligne (idem Perf/Pred) */
-.sec-row { padding:8px 18px; border-bottom:1px solid var(--grid);
-  display:grid; grid-template-columns:38px 1fr auto;
-  align-items:center; gap:10px; min-height:78px; }
-.sec-row.hidden { visibility:hidden; }
-.sec-emoji { font-size:22px; text-align:center; }
-.sec-info .sec-name { font-size:11px; color:var(--text-mid);
-  letter-spacing:1.5px; text-transform:uppercase; }
-.sec-info .sec-stock { font-family:'Inter',sans-serif; font-weight:700;
-  font-size:16px; color:var(--text); margin-top:3px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sec-info .sec-tk { color:var(--blue); font-family:'JetBrains Mono';
-  font-weight:600; font-size:12px; margin-top:2px; display:block; }
-.sec-num { font-family:'Inter',sans-serif; font-weight:800; font-size:20px; }
+/* Section secteurs ALIGNÉE — 11 lignes, secteur | PEA | CTO */
+.sec-aligned-row { padding:6px 14px; border-bottom:1px solid var(--grid);
+  display:grid; grid-template-columns:200px 1fr 1fr;
+  align-items:center; gap:14px; min-height:84px; }
+.sec-aligned-row.hidden { visibility:hidden; }
+.sec-aligned-row.alt { background:var(--bg-row); }
+
+/* Colonne 1 : Label du secteur */
+.sec-label-col { display:flex; flex-direction:column; gap:2px; }
+.sec-label-emoji { font-size:30px; line-height:1; }
+.sec-label-text { color:var(--text-mid); font-size:10px;
+  letter-spacing:1.2px; text-transform:uppercase; font-weight:600;
+  line-height:1.2; margin-top:4px; }
+
+/* Colonnes 2 et 3 : Ticker PEA / Ticker CTO */
+.sec-cell { display:grid; grid-template-columns:auto 1fr auto;
+  align-items:center; gap:8px; padding:8px 10px;
+  background:rgba(255,255,255,0.02); border-left:3px solid var(--grid); }
+.sec-cell.has-pea { border-left-color:var(--pea); }
+.sec-cell.has-cto { border-left-color:var(--cto); }
+.sec-cell.empty { opacity:0.3; border-left-color:var(--dim); }
+.sec-cell-flag { font-size:18px; }
+.sec-cell-info { min-width:0; }
+.sec-cell-name { font-family:'Inter',sans-serif; font-weight:700;
+  font-size:14px; color:var(--text); letter-spacing:-0.2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
+.sec-cell-tk { color:var(--blue); font-family:'JetBrains Mono';
+  font-weight:600; font-size:11px; letter-spacing:0.3px; margin-top:2px; }
+.sec-cell-score { font-family:'Inter',sans-serif; font-weight:800;
+  font-size:18px; letter-spacing:-0.5px; text-align:right; }
+.sec-cell-empty { color:var(--dim); font-size:11px; font-style:italic;
+  text-align:center; grid-column:1/-1; }
+
+/* En-tête section secteurs : labels PEA / CTO sur fond bleu */
+.sec-headers { display:grid; grid-template-columns:200px 1fr 1fr;
+  gap:14px; padding:8px 14px; margin-bottom:6px;
+  background:var(--bg-pan); border:1px solid var(--grid); }
+.sec-headers .h-label { color:var(--text-mid); font-size:11px;
+  font-weight:700; letter-spacing:1.5px; text-transform:uppercase; }
+.sec-headers .h-pea { color:var(--pea); }
+.sec-headers .h-cto { color:var(--cto); }
 
 /* CTA (slide finale) */
 .cta-eyebrow { color:var(--blue); font-size:16px; font-weight:700;
@@ -1654,14 +1738,18 @@ body {
 .cta-quiz-hint { color:var(--text-mid); font-size:17px;
   margin-top:14px; font-style:italic; line-height:1.5; }
 
-/* Réactions LinkedIn (style natif) — 💡 Instructif remplace 👍 J'aime */
+/* Réactions LinkedIn (style natif) — 💡 ETF, 👏 Stock-picking, ❤️ Hybride */
 .cta-reactions { display:flex; justify-content:center; gap:48px;
   margin-bottom:24px; padding-bottom:24px;
   border-bottom:1px solid var(--grid); }
-.reaction-item { display:flex; flex-direction:column; align-items:center; gap:6px; }
+.reaction-item { display:flex; flex-direction:column; align-items:center; gap:4px; }
 .reaction-emoji { font-size:54px; line-height:1; }
-.reaction-label { color:var(--text-mid); font-size:13px;
-  letter-spacing:1.5px; text-transform:uppercase; font-weight:600; }
+.reaction-label { color:var(--blue); font-size:16px;
+  letter-spacing:1.5px; text-transform:uppercase; font-weight:800;
+  margin-top:6px; }
+.reaction-sub { color:var(--text-mid); font-size:11px;
+  letter-spacing:1.2px; text-transform:uppercase; font-weight:600;
+  font-style:italic; }
 
 .cta-disc { color:var(--dim); font-size:13px; margin-top:35px;
   font-style:italic; line-height:1.6; }
@@ -1849,24 +1937,52 @@ def _row_conv_html(rank: int, r: dict) -> str:
 </div>"""
 
 
-def _row_sec_html(r: dict, alt: bool = False) -> str:
-    """HTML d'une ligne de la section secteurs (vidéo, 2 colonnes)."""
-    flag    = get_flag(r["ticker"])
-    sec_label, emoji = get_sector_display(r["sector_fr"])
-    score   = fmt_signed_pct(r.get("total_pct"))
-    score_c = perf_class(r.get("total_pct"))
-    name    = smart_trunc(cap_name(r.get("name", "")), 22)
+def _sec_cell_html(row: dict | None, side: str) -> str:
+    """
+    HTML d'une cellule PEA ou CTO dans la grille alignée.
+    
+    Args:
+        row : dict du ticker (None si pas de ticker pour ce secteur côté concerné)
+        side : "pea" ou "cto"
+    """
+    if row is None:
+        return f'<div class="sec-cell empty"><div class="sec-cell-empty">—</div></div>'
+
+    flag    = get_flag(row["ticker"])
+    score   = fmt_signed_pct(row.get("total_pct"))
+    score_c = perf_class(row.get("total_pct"))
+    name    = smart_trunc(cap_name(row.get("name", "")), 20)
+    return f"""<div class="sec-cell has-{side}">
+  <div class="sec-cell-flag">{flag}</div>
+  <div class="sec-cell-info">
+    <div class="sec-cell-name">{html_lib.escape(name)}</div>
+    <div class="sec-cell-tk">{row["ticker"]}</div>
+  </div>
+  <div class="sec-cell-score tabnum {score_c}">{score}</div>
+</div>"""
+
+
+def _row_sec_aligned_html(sector_data: dict, alt: bool = False) -> str:
+    """
+    HTML d'une ligne alignée : Label secteur | Cellule PEA | Cellule CTO.
+    """
+    sec_label, emoji = get_sector_display(sector_data["sector_fr"])
+    pea_cell = _sec_cell_html(sector_data.get("pea"), "pea")
+    cto_cell = _sec_cell_html(sector_data.get("cto"), "cto")
     alt_cls = "alt" if alt else ""
     return f"""
-<div class="sec-row {alt_cls}">
-  <div class="sec-emoji">{emoji}</div>
-  <div class="sec-info">
-    <div class="sec-name">{html_lib.escape(sec_label)}</div>
-    <div class="sec-stock">{html_lib.escape(name)}</div>
-    <div class="sec-tk">{flag} {r["ticker"]}</div>
+<div class="sec-aligned-row {alt_cls}">
+  <div class="sec-label-col">
+    <div class="sec-label-emoji">{emoji}</div>
+    <div class="sec-label-text">{html_lib.escape(sec_label)}</div>
   </div>
-  <div class="sec-num tabnum {score_c}">{score}</div>
+  {pea_cell}
+  {cto_cell}
 </div>"""
+
+
+def _row_sec_hidden_aligned() -> str:
+    return '<div class="sec-aligned-row hidden"></div>'
 
 
 def _row_hidden() -> str:
@@ -1938,34 +2054,39 @@ def html_conv(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> str:
 
 def html_sectors(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> str:
     """
-    Slide TOP 10 PREDICTION PAR SECTEUR, 2 colonnes PEA / CTO.
+    Slide TOP PREDICTION PAR SECTEUR - layout aligné PEA vs CTO côte à côte.
+    
+    11 lignes (1 par secteur GICS) :
+      Label secteur | Meilleur ticker PEA dans ce secteur | Meilleur ticker CTO dans ce secteur
+    
     Défilement ligne par ligne (`visible` = nombre de lignes affichées).
     """
-    pea_data = rk.sec_pea.head(N_SECTOR_PER_COL).to_dict("records")
-    cto_data = rk.sec_cto.head(N_SECTOR_PER_COL).to_dict("records")
-    rows_pea, rows_cto = "", ""
-    for i in range(N_SECTOR_PER_COL):
-        if i < visible and i < len(pea_data):
-            rows_pea += _row_sec_html(pea_data[i], alt=(i % 2 == 1))
-        else:
-            rows_pea += _sec_row_hidden()
-        if i < visible and i < len(cto_data):
-            rows_cto += _row_sec_html(cto_data[i], alt=(i % 2 == 1))
-        else:
-            rows_cto += _sec_row_hidden()
-    body = f"""<div class="body">
-  <div class="dual-title">TOP {N_SECTOR_PER_COL} <span class="or">PREDICTION PAR SECTEUR</span></div>
-  <div class="dual-sub">Meilleur ticker par secteur GICS  ·  Score = potentiel cible + dividende</div>
-  <div class="dual-grid">
-    <div class="panel"><div class="panel-head pea">
-      <div class="panel-tag pea">🇪🇺 PEA · ZONE EEE</div>
-      <div class="panel-info">PAR SECTEUR</div></div>{rows_pea}</div>
-    <div class="panel"><div class="panel-head cto">
-      <div class="panel-tag cto">🌍 CTO · MONDIAL</div>
-      <div class="panel-info">PAR SECTEUR</div></div>{rows_cto}</div>
-  </div>
+    aligned_data = rk.sec_aligned[:N_SECTORS_ALIGNED]
+    n_total_lines = len(aligned_data)
+
+    # En-tête avec labels PEA / CTO
+    headers_html = """
+<div class="sec-headers">
+  <div class="h-label">SECTEUR GICS</div>
+  <div class="h-label h-pea">🇪🇺 MEILLEUR PEA</div>
+  <div class="h-label h-cto">🌍 MEILLEUR CTO</div>
 </div>"""
-    return _wrap(body, f"PREDICTION PAR SECTEUR · TOP {N_SECTOR_PER_COL}", snapshot, period_fr, rk.n_total)
+
+    # Lignes (visible = nombre actuellement affichées, le reste hidden pour défilement)
+    rows = ""
+    for i in range(n_total_lines):
+        if i < visible:
+            rows += _row_sec_aligned_html(aligned_data[i], alt=(i % 2 == 1))
+        else:
+            rows += _row_sec_hidden_aligned()
+
+    body = f"""<div class="body">
+  <div class="dual-title">TOP {N_SECTORS_ALIGNED} <span class="or">PRÉDICTION PAR SECTEUR</span></div>
+  <div class="dual-sub">Meilleur ticker PEA vs meilleur ticker CTO par secteur GICS  ·  Score = potentiel cible + dividende  ·  Tri par max(PEA,CTO)</div>
+  {headers_html}
+  {rows}
+</div>"""
+    return _wrap(body, f"PRÉDICTION PAR SECTEUR · TOP {N_SECTORS_ALIGNED}", snapshot, period_fr, rk.n_total)
 
 
 # ── HTML : Slide CTA finale (11s, badge "À BIENTÔT" sobre bleu) ──────
@@ -1998,19 +2119,22 @@ def html_cta(rk: Rankings, snapshot: str, period_fr: str) -> str:
     <div class="cta-reactions">
       <div class="reaction-item">
         <div class="reaction-emoji">💡</div>
-        <div class="reaction-label">Instructif</div>
+        <div class="reaction-label">ETF</div>
+        <div class="reaction-sub">Instructif</div>
       </div>
       <div class="reaction-item">
         <div class="reaction-emoji">👏</div>
-        <div class="reaction-label">Bravo</div>
+        <div class="reaction-label">Stock-picking</div>
+        <div class="reaction-sub">Bravo</div>
       </div>
       <div class="reaction-item">
         <div class="reaction-emoji">❤️</div>
-        <div class="reaction-label">Adore</div>
+        <div class="reaction-label">Hybride</div>
+        <div class="reaction-sub">Adore</div>
       </div>
     </div>
-    <div class="cta-quiz-q">💬 Réagis + commente ta stratégie</div>
-    <div class="cta-quiz-hint">ETF · Stock-picking · Hybride ? Détaille en commentaire 👇</div>
+    <div class="cta-quiz-q">💬 Réagis selon ta stratégie + commente</div>
+    <div class="cta-quiz-hint">Lis bien la légende sous chaque emoji 👇</div>
   </div>
   <div class="next-brief-badge">
     🚀 À BIENTÔT POUR LE BRIEF DE {next_month.upper()}
@@ -2108,13 +2232,13 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
         dur = per_frame + (hold_duration if v == n_anim_frames else 0.0)
         frames.append((path, dur))
 
-    # ── TOP 10 PREDICTION PAR SECTEUR : défilement 10 frames + hold ─
-    log.info("🎬 RENDU FRAMES — Sectors (défilement 10 lignes PEA + 10 CTO simultané)")
-    for v in range(1, N_SECTOR_PER_COL + 1):
+    # ── TOP 10 PRÉDICTION PAR SECTEUR : défilement 10 frames + hold ─
+    log.info("🎬 RENDU FRAMES — Sectors (défilement %d secteurs alignés PEA vs CTO)", N_SECTORS_ALIGNED)
+    for v in range(1, N_SECTORS_ALIGNED + 1):
         path = tmpdir / f"04_sect_{v:02d}.png"
-        log.info("   ↳ frame sect %d/%d", v, N_SECTOR_PER_COL)
+        log.info("   ↳ frame sect %d/%d", v, N_SECTORS_ALIGNED)
         _render_html_threaded(html_sectors(rk, snapshot, period_fr, visible=v), path)
-        dur = (DUR_SECTORS * 0.65 / N_SECTOR_PER_COL) + (DUR_SECTORS * 0.35 if v == N_SECTOR_PER_COL else 0.0)
+        dur = (DUR_SECTORS * 0.65 / N_SECTORS_ALIGNED) + (DUR_SECTORS * 0.35 if v == N_SECTORS_ALIGNED else 0.0)
         frames.append((path, dur))
 
     # ── CTA : 1 seule frame, durée totale 11s ──────────────────────
