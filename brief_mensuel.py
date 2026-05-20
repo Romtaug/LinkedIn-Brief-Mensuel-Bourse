@@ -127,11 +127,11 @@ VIDEO_FPS        = 30
 VIDEO_CRF        = 18
 VIDEO_PRESET     = "veryslow"
 # ── Vidéo : timing total = 30s pile ──────────────────────────────────
-DUR_COVER        = 4.0
-DUR_TOP_PERF     = 5.0
-DUR_TOP_PRED     = 5.0
-DUR_SECTORS      = 5.0
-DUR_CTA          = 11.0            # Long pour que le badge "À BIENTÔT" soit bien visible
+DUR_COVER        = 5.0
+DUR_TOP_PERF     = 6.5
+DUR_TOP_PRED     = 6.5
+DUR_SECTORS      = 6.5
+DUR_CTA          = 5.0            # Long pour que le badge "À BIENTÔT" soit bien visible
 TOTAL_DURATION   = DUR_COVER + DUR_TOP_PERF + DUR_TOP_PRED + DUR_SECTORS + DUR_CTA  # 30s
 
 # ── Vidéo : effets ────────────────────────────────────────────────────
@@ -1522,13 +1522,13 @@ FUN (40-50%) = stock-picking diversifié, 1 action / secteur min."""
 
 {BAR_S}
 
-⭐ TOP 5 POTENTIEL (cible + dividende){pot_sub}
+⭐ TOP 5 POTENTIELS (cible + dividende){pot_sub}
 
 {pot_rows}
 
 {BAR_S}
 
-📂 TOP {N_SECTORS_ALIGNED} PRÉDICTION PAR SECTEUR (PEA vs CTO)
+📂 TOP PRÉDICTIONS PAR SECTEUR (PEA vs CTO)
 
 {sec_blocks}
 
