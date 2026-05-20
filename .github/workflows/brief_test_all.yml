@@ -1,0 +1,75 @@
+name: 📊 Brief Quotidien · PROD COMPLET
+
+on:
+  schedule:
+    - cron: '0 4 * * *'   # ← Tous les jours à 4h UTC (= 6h Paris été)
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'TEST_MODE (true = 30 tickers, false = 1370)'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+      send_to_webhook:
+        description: 'Envoyer à Make.com'
+        required: false
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+
+jobs:
+  brief:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90    # ← 90 min pour être tranquille avec retries
+
+    env:
+      TEST_MODE: ${{ inputs.test_mode || 'false' }}
+      SEND_TO_WEBHOOK: ${{ inputs.send_to_webhook || 'true' }}
+      FORCE_RUN: 'true'    # ← bypass first business day check
+      WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+      CODE_PARRAINAGE: ${{ secrets.CODE_PARRAINAGE }}
+      PARRAINAGE_URL: ${{ secrets.PARRAINAGE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance pandas requests-cache openpyxl tqdm requests pillow playwright imageio-ffmpeg
+
+      - name: 🎭 Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-Linux-chromium-v1
+
+      - name: 🎭 Install Playwright Chromium
+        run: python -m playwright install chromium
+
+      - name: 🚀 Run brief
+        run: python brief_mensuel.py
+
+      - name: 📤 Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: brief-daily-${{ github.run_number }}
+          path: |
+            out/
+            snapshots/
+
+      - name: 💾 Commit snapshot
+        if: success()
+        run: |
+          git config user.name "Brief Bot"
+          git config user.email "bot@brief.local"
+          git add snapshots/
+          git diff --staged --quiet || git commit -m "📊 Snapshot daily PROD $(date +%Y-%m-%d) [skip ci]"
+          for i in 1 2 3; do git push && echo "✅ Push réussi (tentative $i)" && break || sleep 5; done
