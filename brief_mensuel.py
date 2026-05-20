@@ -1,17 +1,17 @@
 """
 ═══════════════════════════════════════════════════════════════════════
-  brief_mensuel.py · BRIEF MENSUEL EQUITY — v10
+  brief_mensuel.py · BRIEF MENSUEL EQUITY - v10
   ─────────────────────────────────────────────────────────────────────
   Pipeline complet automatisé pour LinkedIn :
     1. Vérifie si on est le premier jour ouvré du mois → sinon skip
     2. Fetch benchmarks (S&P 500, CAC 40, STOXX 600) D'ABORD (anti rate-limit)
-    3. Fetch yfinance (~1480 actions) — 4 workers + pause 15s entre univers
+    3. Fetch yfinance (~1480 actions) - 4 workers + pause 15s entre univers
     4. Génère xlsx + post LinkedIn + vidéo MP4 portrait 1080×1350
     5. Upload vidéo sur litterbox.catbox.moe
     6. Envoie webhook Make.com avec post + (commentaire conditionnel si split)
     7. Rotation snapshots (garde 5 derniers max)
 
-  🆕 v10 — Changelog vs v7 :
+  🆕 v10 - Changelog vs v7 :
     • Rate limit yfinance corrigé : 4 workers, benchmarks d'abord, sleep 15s
     • Section secteurs renommée "TOP 10 PRÉDICTION PAR SECTEUR" (10 secteurs GICS alignés PEA vs CTO côte à côte)
     • Fix bug NaN dans liens BR : helper _safe_url() filtre None/NaN/"nan" pour ne pas afficher "BR : nan"
@@ -70,7 +70,7 @@ from typing import Any
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  1. CONFIG — toute la config lit les env vars (GitHub Actions secrets)
+#  1. CONFIG - toute la config lit les env vars (GitHub Actions secrets)
 # ═════════════════════════════════════════════════════════════════════
 
 def _env_bool(key: str, default: bool = False) -> bool:
@@ -175,7 +175,7 @@ def banner(title: str, char: str = "═", width: int = 70) -> None:
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  3. AUTO-INSTALL (local convenience — CI installe via workflow YAML)
+#  3. AUTO-INSTALL (local convenience - CI installe via workflow YAML)
 # ═════════════════════════════════════════════════════════════════════
 
 def _pip_install(pkg: str) -> None:
@@ -191,7 +191,7 @@ def _ensure_pkg(pkg: str, import_name: str | None = None) -> None:
     except ImportError:
         _pip_install(pkg)
 
-# Install only if missing (idempotent — no-op en CI où deps preinstalled)
+# Install only if missing (idempotent - no-op en CI où deps preinstalled)
 for _p, _i in [
     ("yfinance",       "yfinance"),
     ("pandas",         "pandas"),
@@ -234,7 +234,7 @@ def ensure_chromium_and_ffmpeg() -> None:
                 stdout=subprocess.DEVNULL,
             )
         except subprocess.CalledProcessError:
-            log.warning("  ⚠️  install-deps a échoué — pas grave si déjà installé")
+            log.warning("  ⚠️  install-deps a échoué - pas grave si déjà installé")
     log.info("  ✓ Chromium prêt")
 
     # 1. Essai ffmpeg système (PATH)
@@ -264,7 +264,7 @@ requests_cache.install_cache(".yf_cache.sqlite", expire_after=6 * 3600)
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  4. UNIVERS — ~1480 TICKERS (100% vérifiés sur yfinance)
+#  4. UNIVERS - ~1480 TICKERS (100% vérifiés sur yfinance)
 # ═════════════════════════════════════════════════════════════════════
 # ⚠️  BRK.B → BRK-B et BF.B → BF-B : yfinance utilise le tiret pour les
 #     classes d'actions. Le point fait échouer le fetch.
@@ -276,7 +276,7 @@ requests_cache.install_cache(".yf_cache.sqlite", expire_after=6 * 3600)
 #       .AT Athènes .T  Tokyo       .TO Toronto     .AX Sydney
 #       .HK Hong Kong
 
-# ── S&P 500 (~503 tickers — base US) ─────────────────────────────────
+# ── S&P 500 (~503 tickers - base US) ─────────────────────────────────
 SP500 = [
     "MMM","AOS","ABT","ABBV","ACN","ADBE","AMD","AES","AFL","A","APD","ABNB",
     "AKAM","ALB","ARE","ALGN","ALLE","LNT","ALL","GOOGL","GOOG","MO","AMZN",
@@ -358,13 +358,13 @@ SBF120_MID = [
 
 # ── STOXX Europe 600 ventilé par pays (PEA + UK FTSE 100 + Suisse + Irlande) ─
 _STOXX_NATIONAL = (
-    # CAC 40 — France .PA (PEA)
+    # CAC 40 - France .PA (PEA)
     ["AC.PA","AI.PA","AIR.PA","ALO.PA","AKE.PA","BNP.PA","BVI.PA","EN.PA","CAP.PA",
      "CA.PA","ACA.PA","BN.PA","DSY.PA","EDEN.PA","ENGI.PA","EL.PA","ERF.PA",
      "RMS.PA","KER.PA","LR.PA","OR.PA","MC.PA","ML.PA","ORA.PA","RI.PA",
      "PUB.PA","RNO.PA","SAF.PA","SGO.PA","SAN.PA","SU.PA","GLE.PA","STLAP.PA",
      "STMPA.PA","TEP.PA","HO.PA","TTE.PA","VIE.PA","DG.PA","VIV.PA"]
-    # FTSE 100 — UK .L (NON-PEA, CTO uniquement)
+    # FTSE 100 - UK .L (NON-PEA, CTO uniquement)
     + ["AAL.L","ABF.L","ADM.L","AHT.L","ANTO.L","AZN.L","AUTO.L","AV.L","BA.L",
        "BARC.L","BATS.L","BDEV.L","BEZ.L","BKG.L","BLND.L","BNZL.L","BP.L",
        "BRBY.L","BT-A.L","CCH.L","CNA.L","CPG.L","CRDA.L","CRH.L","CTEC.L",
@@ -376,64 +376,64 @@ _STOXX_NATIONAL = (
        "REL.L","RIO.L","RKT.L","RR.L","RS1.L","SBRY.L","SDR.L","SGE.L","SGRO.L",
        "SHEL.L","SMIN.L","SMT.L","SN.L","SPX.L","SSE.L","STAN.L","STJ.L","SVT.L",
        "TSCO.L","TW.L","ULVR.L","UTG.L","UU.L","VOD.L","WEIR.L","WPP.L","WTB.L"]
-    # IBEX 35 — Espagne .MC (PEA)
+    # IBEX 35 - Espagne .MC (PEA)
     + ["ACS.MC","ACX.MC","AENA.MC","AMS.MC","ANA.MC","ANE.MC","BBVA.MC","BKT.MC",
        "CABK.MC","CLNX.MC","COL.MC","ELE.MC","ENG.MC","FDR.MC","FER.MC","GRF.MC",
        "IBE.MC","IDR.MC","ITX.MC","LOG.MC","MAP.MC","MEL.MC","MRL.MC",
        "MTS.MC","NTGY.MC","PUIG.MC","RED.MC","REP.MC","ROVI.MC","SAB.MC","SAN.MC",
        "SCYR.MC","SLR.MC","TEF.MC","UNI.MC"]
-    # AEX 25 — Pays-Bas .AS (PEA)
+    # AEX 25 - Pays-Bas .AS (PEA)
     + ["MT.AS","ADYEN.AS","AGN.AS","AD.AS","AKZA.AS","ASM.AS","ASML.AS","ASRNL.AS",
        "BESI.AS","DSFIR.AS","EXO.AS","GLPG.AS","HEIA.AS","IMCD.AS","INGA.AS",
        "KPN.AS","NN.AS","PHIA.AS","PRX.AS","RAND.AS","REN.AS","SHELL.AS","UNA.AS",
        "URW.AS","WKL.AS"]
-    # BEL 20 — Belgique .BR (PEA)
+    # BEL 20 - Belgique .BR (PEA)
     + ["ABI.BR","ACKB.BR","AED.BR","AGS.BR","ARGX.BR","AZE.BR","COFB.BR","ELI.BR",
        "GBLB.BR","KBC.BR","MELE.BR","PROX.BR","SOF.BR","SOLB.BR","TNET.BR","UCB.BR",
        "UMI.BR","VGP.BR","WDP.BR"]
-    # FTSE MIB — Italie .MI (PEA)
+    # FTSE MIB - Italie .MI (PEA)
     + ["A2A.MI","AMP.MI","AZM.MI","BAMI.MI","BPE.MI","BMED.MI","BMPS.MI","BPSO.MI",
        "CPR.MI","DIA.MI","ENEL.MI","ENI.MI","RACE.MI","FBK.MI","G.MI","HER.MI",
        "INW.MI","ISP.MI","INTE.MI","IG.MI","IP.MI","LDO.MI","MB.MI","MONC.MI",
        "NEXI.MI","PIRC.MI","PIA.MI","PRY.MI","PST.MI","REC.MI","SPM.MI","SRG.MI",
        "STLAM.MI","STMMI.MI","TIT.MI","TRN.MI","TEN.MI","UCG.MI","UNI.MI"]
-    # OMX Stockholm — Suède .ST (PEA)
+    # OMX Stockholm - Suède .ST (PEA)
     + ["ABB.ST","ALFA.ST","ASSA-B.ST","ATCO-A.ST","ATCO-B.ST","AZN.ST","BOL.ST",
        "ELUX-B.ST","ERIC-B.ST","ESSITY-B.ST","EVO.ST","GETI-B.ST","HEXA-B.ST",
        "HM-B.ST","INVE-B.ST","KINV-B.ST","NDA-SE.ST","NIBE-B.ST","SAND.ST",
        "SCA-B.ST","SEB-A.ST","SHB-A.ST","SINCH.ST","SKF-B.ST","SWED-A.ST",
        "TEL2-B.ST","TELIA.ST","VOLV-B.ST"]
-    # OMX Helsinki — Finlande .HE (PEA)
+    # OMX Helsinki - Finlande .HE (PEA)
     + ["ELISA.HE","FORTUM.HE","KESKOB.HE","KNEBV.HE","METSO.HE","NESTE.HE",
        "NOKIA.HE","NDA-FI.HE","ORNBV.HE","OUT1V.HE","SAMPO.HE","STERV.HE",
        "TELIA1.HE","TYRES.HE","UPM.HE","VALMT.HE","WRT1V.HE"]
-    # OMX Copenhagen — Danemark .CO (PEA)
+    # OMX Copenhagen - Danemark .CO (PEA)
     + ["AMBU-B.CO","BAVA.CO","CARL-B.CO","CHR.CO","COLO-B.CO","DANSKE.CO",
        "DEMANT.CO","DSV.CO","FLS.CO","GMAB.CO","GN.CO","ISS.CO","JYSK.CO",
        "MAERSK-B.CO","NDA-DK.CO","NETC.CO","NOVO-B.CO","NZYM-B.CO","ORSTED.CO",
        "PNDORA.CO","RBREW.CO","ROCK-B.CO","TRYG.CO","VWS.CO"]
-    # Oslo Børs — Norvège .OL (NON-PEA, Norvège hors EEE pour PEA)
+    # Oslo Børs - Norvège .OL (NON-PEA, Norvège hors EEE pour PEA)
     + ["AKERBP.OL","BAKKA.OL","DNB.OL","EQNR.OL","FRO.OL","GJF.OL","MOWI.OL",
        "NHY.OL","ORK.OL","SALM.OL","SCATC.OL","SUBC.OL","TEL.OL","TGS.OL",
        "TOM.OL","YAR.OL"]
-    # ATX — Autriche .VI (PEA)
+    # ATX - Autriche .VI (PEA)
     + ["ANDR.VI","BAWAG.VI","EBS.VI","IIA.VI","LNZ.VI","OMV.VI","POST.VI","RBI.VI",
        "SBO.VI","STR.VI","TKA.VI","UQA.VI","VER.VI","VIG.VI","VOE.VI","WIE.VI"]
-    # SMI — Suisse .SW (NON-PEA, Suisse hors EEE)
+    # SMI - Suisse .SW (NON-PEA, Suisse hors EEE)
     + ["ABBN.SW","ALC.SW","GEBN.SW","GIVN.SW","HOLN.SW","KNIN.SW","LOGN.SW","LONN.SW",
        "NESN.SW","NOVN.SW","PGHN.SW","ROG.SW","SCMN.SW","SGSN.SW","SIKA.SW","SLHN.SW",
        "SOON.SW","SREN.SW","UBSG.SW","ZURN.SW"]
-    # ISEQ — Irlande .IR (PEA)
+    # ISEQ - Irlande .IR (PEA)
     + ["BIRG.IR","CRH.IR","FBD.IR","GLB.IR","GRP.IR","HBRN.IR","KMR.IR","KRZ.IR",
        "OIZ.IR","RYA.IR","SK3.IR"]
-    # PSI 20 — Portugal .LS (PEA)
+    # PSI 20 - Portugal .LS (PEA)
     + ["ALTR.LS","BCP.LS","COR.LS","CTT.LS","EDP.LS","EDPR.LS","GALP.LS","IBS.LS",
        "JMT.LS","MOTA.LS","NOS.LS","NVG.LS","REN.LS","RAM.LS","SEM.LS","SON.LS"]
-    # WIG 20 — Pologne .WA (PEA, marché EEE)
+    # WIG 20 - Pologne .WA (PEA, marché EEE)
     + ["ALE.WA","ALR.WA","BDX.WA","CDR.WA","CPS.WA","DNP.WA","JSW.WA","KGH.WA",
        "KRU.WA","KTY.WA","LPP.WA","MBK.WA","OPL.WA","PCO.WA","PEO.WA","PGE.WA",
        "PKN.WA","PKO.WA","PZU.WA","SPL.WA"]
-    # ASE — Grèce .AT (PEA, marché EEE)
+    # ASE - Grèce .AT (PEA, marché EEE)
     + ["AEGN.AT","ALPHA.AT","ARAIG.AT","BELA.AT","CENER.AT","ELPE.AT","ETE.AT",
        "EUROB.AT","EXAE.AT","GEKTERNA.AT","HTO.AT","JUMBO.AT","LAMDA.AT",
        "METLEN.AT","MOH.AT","MYTIL.AT","OPAP.AT","OTE.AT","PPC.AT","TPEIR.AT",
@@ -442,7 +442,7 @@ _STOXX_NATIONAL = (
 STOXX = sorted(set(_STOXX_NATIONAL))
 
 
-# ── Nikkei 225 — Japon .T (top ~100 actions les plus liquides) ───────
+# ── Nikkei 225 - Japon .T (top ~100 actions les plus liquides) ───────
 NIKKEI = [
     "7203.T","6758.T","9984.T","6861.T","8035.T","7974.T","6098.T","8306.T",
     "9432.T","6501.T","4063.T","4543.T","6981.T","6594.T","6857.T","6902.T",
@@ -459,7 +459,7 @@ NIKKEI = [
     "9502.T","9503.T","9531.T","9602.T","9613.T",
 ]
 
-# ── TSX 60 — Canada .TO ──────────────────────────────────────────────
+# ── TSX 60 - Canada .TO ──────────────────────────────────────────────
 TSX60 = [
     "RY.TO","TD.TO","BNS.TO","BMO.TO","CM.TO","NA.TO","CNR.TO","CP.TO","ENB.TO",
     "TRP.TO","SU.TO","CNQ.TO","CVE.TO","IMO.TO","MFC.TO","SLF.TO","GWO.TO",
@@ -471,7 +471,7 @@ TSX60 = [
     "BEP-UN.TO",
 ]
 
-# ── ASX 50 — Australie .AX ───────────────────────────────────────────
+# ── ASX 50 - Australie .AX ───────────────────────────────────────────
 ASX50 = [
     "BHP.AX","CSL.AX","CBA.AX","NAB.AX","ANZ.AX","WBC.AX","MQG.AX","WES.AX",
     "WOW.AX","COL.AX","RIO.AX","TLS.AX","GMG.AX","FMG.AX","TCL.AX","STO.AX",
@@ -482,7 +482,7 @@ ASX50 = [
     "LLC.AX","DXS.AX",
 ]
 
-# ── Hang Seng 50 — Hong Kong .HK ─────────────────────────────────────
+# ── Hang Seng 50 - Hong Kong .HK ─────────────────────────────────────
 HSI = [
     "0700.HK","0941.HK","1299.HK","0939.HK","0005.HK","0388.HK","0883.HK",
     "0001.HK","0016.HK","0011.HK","0027.HK","0066.HK","0101.HK","0175.HK",
@@ -583,7 +583,7 @@ BENCHMARKS = [
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  6. URL BUILDERS — Boursorama (prio) + Yahoo Finance (toujours dispo)
+#  6. URL BUILDERS - Boursorama (prio) + Yahoo Finance (toujours dispo)
 # ═════════════════════════════════════════════════════════════════════
 
 # Préfixes Boursorama par marché (pour construire l'URL canonique)
@@ -621,7 +621,7 @@ def boursorama_url(ticker: str) -> str | None:
     return None  # Marchés non couverts par Boursorama (Tokyo, Sydney, HK, etc.)
 
 def yahoo_url(ticker: str) -> str:
-    """URL Yahoo Finance — fonctionne pour TOUS les tickers."""
+    """URL Yahoo Finance - fonctionne pour TOUS les tickers."""
     return f"https://finance.yahoo.com/quote/{ticker}/"
 
 def google_finance_url(ticker: str, yf_exchange: str | None = None) -> str | None:
@@ -696,7 +696,7 @@ def fetch_one(ticker: str, market: str, max_retries: int = 3) -> dict[str, Any] 
             reco_mean  = info.get("recommendationMean")
             n_analysts = (info.get("numberOfAnalystOpinions")
                           or info.get("numberOfAnalysts") or 0)
-            reco_label = RECO_LABEL_FR.get(reco_key, reco_key or "—")
+            reco_label = RECO_LABEL_FR.get(reco_key, reco_key or "-")
 
             # ── Perf mois précédent (calendaire complet) ─────────────
             perf_1m = None
@@ -858,12 +858,12 @@ def safe_ticker(t: str) -> str:
     return t.replace(".", ".\u200B")
 
 def clean_reco(label: Any) -> str:
-    if not label or str(label).lower() in ("none", "nan", "—", "", "-"):
+    if not label or str(label).lower() in ("none", "nan", "-", "", "-"):
         return ""
     return str(label)
 
 def fmt_signed_pct(v: Any) -> str:
-    if v is None or pd.isna(v): return "—"
+    if v is None or pd.isna(v): return "-"
     return f"{v:+.1f}%"
 
 def perf_class(v: Any) -> str:
@@ -884,7 +884,7 @@ def reco_color_class(reco_mean: Any) -> str:
 
 def reco_stars(reco_mean: Any) -> str:
     """1.0 = ★★★★★ (Strong Buy), 5.0 = ☆☆☆☆☆ (Strong Sell)"""
-    if reco_mean is None or pd.isna(reco_mean): return "—"
+    if reco_mean is None or pd.isna(reco_mean): return "-"
     score = max(0, min(5, 6 - reco_mean))
     full = int(round(score))
     return "★" * full + "☆" * (5 - full)
@@ -985,7 +985,7 @@ def diff_tag(ticker: str, prev_ranks: dict, cur_rank: int) -> str:
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  10. PIPELINE PRINCIPALE — fetch benchmarks + universes + score
+#  10. PIPELINE PRINCIPALE - fetch benchmarks + universes + score
 # ═════════════════════════════════════════════════════════════════════
 
 def build_test_universe(all_us, all_eu, all_de, all_intl, n_total: int) -> list[tuple[str, str]]:
@@ -1029,7 +1029,7 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
     all_intl = list(dict.fromkeys(NIKKEI + TSX60 + ASX50 + HSI))
 
     # ── 1. Fetch benchmarks AVANT tout (anti rate-limit) ─────────────
-    log.info("\n📊  Fetch benchmarks (S&P 500, CAC 40, STOXX 600) — EN PREMIER (anti rate-limit)…")
+    log.info("\n📊  Fetch benchmarks (S&P 500, CAC 40, STOXX 600) - EN PREMIER (anti rate-limit)…")
     benchmarks = fetch_benchmarks()
     for bm in benchmarks:
         perf = bm.get("perf_1m")
@@ -1078,7 +1078,7 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
         elapsed = time.time() - t0
 
     if not rows:
-        raise RuntimeError("❌ Aucune data récupérée — vérifie connexion/yfinance/rate limit")
+        raise RuntimeError("❌ Aucune data récupérée - vérifie connexion/yfinance/rate limit")
 
     # ── 3. Stats finales ─────────────────────────────────────────────
     stats = pd.Series([r["market"] for r in rows]).value_counts().to_dict()
@@ -1172,7 +1172,7 @@ class Rankings:
         # Tri par max(potentiel PEA, potentiel CTO) desc.
         self.sec_aligned = self._sectors_aligned()
 
-        # ── Top MÉLANGÉS PEA+CTO (pour le POST LinkedIn — Top 5) ─────
+        # ── Top MÉLANGÉS PEA+CTO (pour le POST LinkedIn - Top 5) ─────
         self.top_perf_all = (df.dropna(subset=["perf_1m"])
                              .sort_values("perf_1m", ascending=False)
                              .head(N_TOP))
@@ -1268,7 +1268,7 @@ class Rankings:
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  13. POST LINKEDIN — markdown-style FR avec split automatique
+#  13. POST LINKEDIN - markdown-style FR avec split automatique
 # ═════════════════════════════════════════════════════════════════════
 
 def _build_links(r: dict, mode: str) -> str:
@@ -1297,7 +1297,7 @@ def _row_perf_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
     medal  = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}.get(rank, f"{rank:02d}")
     name   = smart_trunc(cap_name(r.get("name", "")), 28)
     elig   = "✅PEA" if r.get("pea") else "🌍CTO"
-    val    = f"{r['perf_1m']:+.1f}%" if pd.notna(r.get("perf_1m")) else "—"
+    val    = f"{r['perf_1m']:+.1f}%" if pd.notna(r.get("perf_1m")) else "-"
     safe_t = safe_ticker(r["ticker"])
     links  = _build_links(r, links_mode)
     return f"{medal} {name} 📈 {val} · {flag} {safe_t} {elig}{links}"
@@ -1347,10 +1347,10 @@ def _ticker_inline(r: dict | None, with_links: bool = True, label: str = "") -> 
     
     Returns:
         "🇪🇺 PEA · Sanofi +28.5% · 🇫🇷 SAN.PA\\n     ↳ https://..."
-        OU "🇪🇺 PEA · —" si r est None
+        OU "🇪🇺 PEA · -" si r est None
     """
     if r is None:
-        return f"{label} · —"
+        return f"{label} · -"
     flag    = get_flag(r["ticker"])
     name    = smart_trunc(cap_name(r.get("name", "")), 22)
     score   = f"{r['total_pct']:+.1f}%"
@@ -1383,7 +1383,7 @@ def _block_sec_aligned_post(sector_data: dict, with_links: bool = True) -> str:
     cto = sector_data.get("cto")
     
     if pea is None and cto is None:
-        return f"{emoji} {sec_label}\n—"
+        return f"{emoji} {sec_label}\n-"
     
     # Choisir le meilleur des 2 candidats (par total_pct)
     candidates = []
@@ -1516,7 +1516,7 @@ FUN (40-50%) = stock-picking diversifié, 1 action / secteur min."""
 📊 BRIEF BOURSE · {period_fr}
 {BAR_S}
 
-📈 TOP 5 PERFORMANCES — {prev_month_fr}{perf_sub}
+📈 TOP 5 PERFORMANCES - {prev_month_fr}{perf_sub}
 
 {perf_rows}
 
@@ -1567,7 +1567,7 @@ FUN (40-50%) = stock-picking diversifié, 1 action / secteur min."""
     if not final_post:
         # Dernier recours (très rare) : tronquer brutalement
         final_post = candidate[:LINKEDIN_POST_MAX - 50] + "\n\n[Tronqué]"
-        log.error("❌ Toutes les versions dépassent %d chars — tronqué à %d",
+        log.error("❌ Toutes les versions dépassent %d chars - tronqué à %d",
                   LINKEDIN_POST_MAX, len(final_post))
 
     return final_post, ""
@@ -1587,7 +1587,7 @@ def build_linkedin_post(rk: Rankings, period_fr: str, prev_month_fr: str,
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  14. VIDÉO MP4 — HTML/CSS rendu Playwright + ffmpeg concat demuxer
+#  14. VIDÉO MP4 - HTML/CSS rendu Playwright + ffmpeg concat demuxer
 # ═════════════════════════════════════════════════════════════════════
 
 # Fonts Google : Inter (titres) + JetBrains Mono (datas tabulaires)
@@ -1652,7 +1652,7 @@ body {
 .stat-label { color:var(--text-mid); font-size:13px; letter-spacing:2px;
   text-transform:uppercase; margin-top:14px; }
 
-/* Pills d'indices — 1 ligne pleine largeur */
+/* Pills d'indices - 1 ligne pleine largeur */
 .cover-indices { display:flex; flex-wrap:nowrap; gap:9px; margin-top:40px;
   width:100%; align-items:center; justify-content:space-between; }
 .idx-pill { border:2px solid var(--blue); padding:8px 12px;
@@ -1719,7 +1719,7 @@ body {
 .reco-hold { color:var(--amber); } .reco-sell { color:#ff8855; }
 .reco-vsell { color:var(--red); } .reco-na { color:var(--dim); }
 
-/* Section secteurs ALIGNÉE — 11 lignes, secteur | PEA | CTO */
+/* Section secteurs ALIGNÉE - 11 lignes, secteur | PEA | CTO */
 .sec-aligned-row { padding:6px 14px; border-bottom:1px solid var(--grid);
   display:grid; grid-template-columns:200px 1fr 1fr;
   align-items:center; gap:14px; min-height:84px; }
@@ -1784,7 +1784,7 @@ body {
 .cta-quiz-hint { color:var(--text-mid); font-size:17px;
   margin-top:14px; font-style:italic; line-height:1.5; }
 
-/* Réactions LinkedIn (style natif) — 💡 ETF, 👏 Stock-picking, ❤️ Hybride */
+/* Réactions LinkedIn (style natif) - 💡 ETF, 👏 Stock-picking, ❤️ Hybride */
 .cta-reactions { display:flex; justify-content:center; gap:48px;
   margin-bottom:24px; padding-bottom:24px;
   border-bottom:1px solid var(--grid); }
@@ -1800,7 +1800,7 @@ body {
 .cta-disc { color:var(--dim); font-size:13px; margin-top:35px;
   font-style:italic; line-height:1.6; }
 
-/* Badge "prochain brief" — sobre bleu, look pro et bien visible */
+/* Badge "prochain brief" - sobre bleu, look pro et bien visible */
 .next-brief-badge {
   margin-top:30px;
   padding:18px 24px;
@@ -1888,7 +1888,7 @@ def html_cover(rk: Rankings, snapshot: str, period_fr: str, frame: int = 3) -> s
         for bm in rk.benchmarks:
             perf = bm.get("perf_1m")
             if perf is None:
-                perf_str = "—"
+                perf_str = "-"
                 perf_cls = "neut"
             else:
                 perf_str = f"{perf:+.2f}%"
@@ -1957,7 +1957,7 @@ def _row_conv_html(rank: int, r: dict) -> str:
     medal   = {1:"gold", 2:"silver", 3:"bronze"}.get(rank, "")
     rm      = r.get("reco_mean")
     stars   = reco_stars(rm)
-    reco_lb = r.get("reco_label") or "—"
+    reco_lb = r.get("reco_label") or "-"
     n_an    = int(r.get("analyst_count", 0) or 0)
     target  = fmt_signed_pct(r.get("target_pct"))
     div_pct = r.get("div_pct", 0) or 0
@@ -1994,7 +1994,7 @@ def _sec_cell_html(row: dict | None, side: str) -> str:
         side : "pea" ou "cto"
     """
     if row is None:
-        return f'<div class="sec-cell empty"><div class="sec-cell-empty">—</div></div>'
+        return f'<div class="sec-cell empty"><div class="sec-cell-empty">-</div></div>'
 
     flag    = get_flag(row["ticker"])
     score   = fmt_signed_pct(row.get("total_pct"))
@@ -2199,7 +2199,7 @@ def html_cta(rk: Rankings, snapshot: str, period_fr: str) -> str:
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  15. RENDER FRAMES — Playwright orchestrator (génère tous les PNG)
+#  15. RENDER FRAMES - Playwright orchestrator (génère tous les PNG)
 # ═════════════════════════════════════════════════════════════════════
 
 def _playwright_render_html_to_png(playwright, html: str, out_path: Path,
@@ -2252,7 +2252,7 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
     frames: list[tuple[Path, float]] = []
 
     # ── COVER : 3 frames Ken Burns ──────────────────────────────────
-    log.info("\n🎬 RENDU FRAMES — Cover (3 frames Ken Burns)")
+    log.info("\n🎬 RENDU FRAMES - Cover (3 frames Ken Burns)")
     cover_durations = [DUR_COVER * 0.33, DUR_COVER * 0.33, DUR_COVER * 0.34]
     for i in range(1, 4):
         path = tmpdir / f"01_cover_{i:02d}.png"
@@ -2261,7 +2261,7 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
         frames.append((path, cover_durations[i-1]))
 
     # ── TOP 10 PERFORMANCES : défilement 10 frames + hold ───────────
-    log.info("🎬 RENDU FRAMES — Top Performances (défilement 10 lignes)")
+    log.info("🎬 RENDU FRAMES - Top Performances (défilement 10 lignes)")
     # 10 frames de défilement (apparition d'1 ligne par frame), dernière prolongée
     n_anim_frames = N_TOP_VIDEO  # 10
     anim_duration = DUR_TOP_PERF * 0.65  # 65% pour le défilement = 3.25s
@@ -2276,7 +2276,7 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
         frames.append((path, dur))
 
     # ── TOP 10 PREDICTION : défilement 10 frames + hold ─────────────
-    log.info("🎬 RENDU FRAMES — Top Prediction (défilement 10 lignes)")
+    log.info("🎬 RENDU FRAMES - Top Prediction (défilement 10 lignes)")
     for v in range(1, n_anim_frames + 1):
         path = tmpdir / f"03_pred_{v:02d}.png"
         log.info("   ↳ frame pred %d/%d", v, n_anim_frames)
@@ -2285,7 +2285,7 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
         frames.append((path, dur))
 
     # ── TOP 10 PRÉDICTION PAR SECTEUR : défilement 10 frames + hold ─
-    log.info("🎬 RENDU FRAMES — Sectors (défilement %d secteurs alignés PEA vs CTO)", N_SECTORS_ALIGNED)
+    log.info("🎬 RENDU FRAMES - Sectors (défilement %d secteurs alignés PEA vs CTO)", N_SECTORS_ALIGNED)
     for v in range(1, N_SECTORS_ALIGNED + 1):
         path = tmpdir / f"04_sect_{v:02d}.png"
         log.info("   ↳ frame sect %d/%d", v, N_SECTORS_ALIGNED)
@@ -2294,7 +2294,7 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
         frames.append((path, dur))
 
     # ── CTA : 1 seule frame, durée totale 11s ──────────────────────
-    log.info("🎬 RENDU FRAMES — CTA (1 frame, 11s)")
+    log.info("🎬 RENDU FRAMES - CTA (1 frame, 11s)")
     cta_path = tmpdir / "05_cta.png"
     _render_html_threaded(html_cta(rk, snapshot, period_fr), cta_path)
     frames.append((cta_path, DUR_CTA))
@@ -2307,7 +2307,7 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  16. AUTO-DOWNLOAD MUSIQUE — fallback Internet Archive CC BY-SA 4.0
+#  16. AUTO-DOWNLOAD MUSIQUE - fallback Internet Archive CC BY-SA 4.0
 # ═════════════════════════════════════════════════════════════════════
 
 def auto_download_music(target_path: Path) -> Path | None:
@@ -2341,12 +2341,12 @@ def auto_download_music(target_path: Path) -> Path | None:
             log.warning("   ⚠️  Échec : %s", e)
             continue
 
-    log.warning("🎵  Aucune musique disponible — la vidéo sera muette")
+    log.warning("🎵  Aucune musique disponible - la vidéo sera muette")
     return None
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  17. ASSEMBLE MP4 — ffmpeg concat demuxer + musique + effects
+#  17. ASSEMBLE MP4 - ffmpeg concat demuxer + musique + effects
 # ═════════════════════════════════════════════════════════════════════
 
 def assemble_mp4(frames: list[tuple[Path, float]], out_path: Path,
@@ -2433,7 +2433,7 @@ def assemble_mp4(frames: list[tuple[Path, float]], out_path: Path,
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  18. MAKE VIDEO — orchestrateur principal
+#  18. MAKE VIDEO - orchestrateur principal
 # ═════════════════════════════════════════════════════════════════════
 
 def make_video(rk: Rankings, snapshot: str, period_fr: str) -> Path:
@@ -2462,7 +2462,7 @@ def make_video(rk: Rankings, snapshot: str, period_fr: str) -> Path:
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  19. UPLOAD LITTERBOX — hébergement temporaire pour Make.com → LinkedIn
+#  19. UPLOAD LITTERBOX - hébergement temporaire pour Make.com → LinkedIn
 # ═════════════════════════════════════════════════════════════════════
 
 def upload_to_litterbox(file_path: Path, expiration: str = LITTERBOX_EXPIRATION,
@@ -2499,7 +2499,7 @@ def upload_to_litterbox(file_path: Path, expiration: str = LITTERBOX_EXPIRATION,
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  20. SEND WEBHOOK — Make.com (post + commentaire conditionnel)
+#  20. SEND WEBHOOK - Make.com (post + commentaire conditionnel)
 # ═════════════════════════════════════════════════════════════════════
 
 def send_webhook(snapshot: str, period_fr: str, post: str, comment: str,
@@ -2529,7 +2529,7 @@ def send_webhook(snapshot: str, period_fr: str, post: str, comment: str,
     payload = {
         "date":         snapshot,
         "period":       period_fr,
-        "message":      f"Brief Mensuel Bourse — {period_fr.title()} — {n_disp} actions",
+        "message":      f"Brief Mensuel Bourse - {period_fr.title()} - {n_disp} actions",
         "filename":     video_path.name,
         "video_base64": video_url,  # NB: contient la base64 (renommé pour clarté côté Make.com)
         "video_mime":   "video/mp4",
@@ -2545,7 +2545,7 @@ def send_webhook(snapshot: str, period_fr: str, post: str, comment: str,
              len(post), len(comment))
     try:
         r = requests.post(WEBHOOK_URL, json=payload, timeout=30)
-        log.info("   ↳ HTTP %d — %s", r.status_code, r.text[:300])
+        log.info("   ↳ HTTP %d - %s", r.status_code, r.text[:300])
         r.raise_for_status()
         log.info("✅  Webhook envoyé avec succès")
     except Exception as e:
@@ -2554,7 +2554,7 @@ def send_webhook(snapshot: str, period_fr: str, post: str, comment: str,
 
 
 # ═════════════════════════════════════════════════════════════════════
-#  21. MAIN — orchestrateur global
+#  21. MAIN - orchestrateur global
 # ═════════════════════════════════════════════════════════════════════
 
 def main() -> int:
@@ -2575,7 +2575,7 @@ def main() -> int:
     
     Returns: exit code (0 = succès, 1 = erreur)
     """
-    banner("🚀 BRIEF MENSUEL EQUITY — v10", char="═")
+    banner("🚀 BRIEF MENSUEL EQUITY - v10", char="═")
     log.info("Mode      : %s", "🧪 TEST" if TEST_MODE else "🚀 PROD")
     log.info("Date      : %s", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     log.info("Webhook   : %s", "configuré ✓" if WEBHOOK_URL else "ABSENT ⚠️")
