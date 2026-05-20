@@ -95,7 +95,7 @@ SLEEP_BETWEEN_UNI  = 15            # secondes entre 2 univers (anti rate-limit)
 SLEEP_AFTER_BENCH  = 10            # secondes après les benchmarks avant fetch universe
 
 # ── LinkedIn ─────────────────────────────────────────────────────────
-LINKEDIN_POST_MAX  = 99999         # Limite officielle API LinkedIn UGC Posts
+LINKEDIN_POST_MAX  = 4000         # Limite officielle API LinkedIn UGC Posts
 LINKEDIN_COMMENT_MAX = 1250        # Limite officielle commentaires LinkedIn
 N_ACTIONS_DISPLAY  = "+1000"       # Texte figé dans le hook (peu importe la valeur réelle)
 
@@ -1386,23 +1386,23 @@ def _block_sec_aligned_post(sector_data: dict, with_links: bool = True) -> str:
 
 def _build_post_complete(rk: Rankings, period_fr: str, prev_month_fr: str) -> tuple[str, str]:
     """
-    Construit le post LinkedIn complet dans 1 SEUL post (jamais de commentaire).
+    Construit le post LinkedIn dans 1 SEUL post.
     
-    Stratégie progressive si dépasse 3000 chars :
-      Niveau 0 : Top 5 PERF & PRED en 2 liens (BR+YF) + 11 secteurs avec liens
-      Niveau 1 : Top 5 en 2 liens + 11 secteurs SANS liens (juste tickers)
-      Niveau 2 : Top 5 en BR_only + 11 secteurs sans liens
-      Niveau 3 : Top 5 PRED en BR_only (perf garde 2 liens) + secteurs sans
-      Niveau 4 : Hook court (drop "85% des fonds...")
-      Niveau 5 : Top 5 PRED sans liens + secteurs sans liens
-      Niveau 6 : Tout sans liens (sauf règle d'or qui garde ses 2 ETF)
+    ⚠️  Stratégie v11 : LIENS INTOUCHABLES (BR + YF préservés à tous les niveaux).
+    On drop progressivement uniquement le contenu marketing/explicatif.
     
-    Retourne : (post, "") — le 2ème element comment_text est TOUJOURS vide
-    car le user a demandé 1 seul post (pas de split commentaire).
+    Cascade de dégradation :
+      N0 : Tout (hook long + CTA emojis + Épingle + sous-titres + 10 hashtags + bench)
+      N1 : Drop hook long "85% des fonds..." (utilise hook_court ultra-minimal)
+      N2 : + Drop bloc CTA réactions 💡👏❤️
+      N3 : + Drop "📌 Épingle · 🔁 Partage" + sous-titres explicatifs Top 5
+      N4 : + Réduit hashtags (10 → 5)
+      N5 : + Drop bench_line "📊 Marché en..."
     """
     next_month_fr = _next_month_fr(period_fr)
+    BAR_S = "━" * 26
 
-    # ── Ligne benchmark en tête ──────────────────────────────────────
+    # ── Bench line (optionnel dès N5) ───────────────────────────────
     bench_line = ""
     if rk.benchmarks:
         bench_parts = []
@@ -1413,9 +1413,8 @@ def _build_post_complete(rk: Rankings, period_fr: str, prev_month_fr: str) -> tu
         if bench_parts:
             bench_line = f"📊 Marché en {prev_month_fr.lower()} : " + " · ".join(bench_parts) + "\n\n"
 
-    # ── Hook normal & court ──────────────────────────────────────────
-    hook_normal = f"""\
-{bench_line}🚨 {N_ACTIONS_DISPLAY} actions analysées ce mois-ci.
+    # ── Hooks (long / court) ────────────────────────────────────────
+    hook_normal = f"""🚨 {N_ACTIONS_DISPLAY} actions analysées ce mois-ci.
 
 85% des fonds gérés activement se font battre par leur indice sur 10 ans.
 Frais, biais, hasard : tout joue contre toi en stock-picking pur.
@@ -1423,61 +1422,78 @@ Frais, biais, hasard : tout joue contre toi en stock-picking pur.
 Solution : ETF en socle, stock-picking pour le fun.
 Ce brief alimente la 2e partie."""
 
-    hook_court = f"""{bench_line}🚨 {N_ACTIONS_DISPLAY} actions analysées ce mois-ci.
+    hook_court = f"🚨 {N_ACTIONS_DISPLAY} actions analysées ce mois-ci."
 
-ETF en socle, stock-picking pour le fun. Le brief alimente la 2e partie."""
+    # ── Sous-titres explicatifs (optionnels dès N3) ─────────────────
+    perf_subtitle = "Le plus monté ce mois-ci (PEA+CTO)."
+    pot_subtitle  = "Score = cible 12m + div. ★★★★★ = consensus achat fort."
 
-    BAR_S = "━" * 26
+    # ── Hashtags (10 ou 5) ──────────────────────────────────────────
+    hashtags_full = ("#BriefMensuelBourse #Investissement #PEA #ETF #Bourse\n"
+                     "#Python #DataScience #YahooFinance #Boursorama #Prediction")
+    hashtags_min  = "#BriefMensuelBourse #Investissement #PEA #ETF #Bourse"
 
-    # ── Règle d'or & CTA (toujours pareils) ──────────────────────────
-    rule_dor = f"""\
-🎯 RÈGLE D'OR
+    # ── Blocs CTA optionnels ────────────────────────────────────────
+    cta_emojis_block = """💬 Choisis ta réaction selon ta stratégie :
+💡 Instructif = je suis 100% ETF
+👏 Bravo = je fais du stock-picking
+❤️ Adore = approche hybride ETF + stock-picking"""
+
+    share_block = "📌 Épingle  ·  🔁 Partage à un débutant en bourse"
+
+    # ── Règle d'or (TOUJOURS présente, jamais drop) ─────────────────
+    rule_dor = f"""🎯 RÈGLE D'OR
 SOCLE (50-60%) = 2 ETF mondiaux.
 🇺🇸 ETF S&P 500 {ETF_SP500_URL}
 🇪🇺 ETF STOXX 600 {ETF_STOXX_URL}
 FUN (40-50%) = stock-picking diversifié, 1 action / secteur min."""
 
-    cta_etc = f"""\
-💬 Choisis ta réaction selon ta stratégie :
-💡 Instructif = je suis 100% ETF
-👏 Bravo = je fais du stock-picking
-❤️ Adore = approche hybride ETF + stock-picking
+    def _build_cta(with_emojis: bool, with_share: bool, hashtags: str) -> str:
+        """Construit le bloc CTA final selon les flags."""
+        parts = []
+        if with_emojis:
+            parts.append(cta_emojis_block)
+        if with_share:
+            parts.append(share_block)
+        parts.append("⚠️ « Risque de perte en capital. Ceci n'est pas un conseil. »")
+        parts.append(f"💳 Boursorama via parrainage {CODE_PARRAINAGE} (+100€ chacun) : {PARRAINAGE}")
+        parts.append(f"🔔 RDV dans 1 mois pour le brief de {next_month_fr}.")
+        parts.append(hashtags)
+        return "\n\n".join(parts)
 
-📌 Épingle  ·  🔁 Partage à un débutant en bourse
-
-⚠️ « Risque de perte en capital. Ceci n'est pas un conseil. »
-
-💳 Boursorama via parrainage {CODE_PARRAINAGE} (+100€ chacun) : {PARRAINAGE}
-
-🔔 RDV dans 1 mois pour le brief de {next_month_fr}.
-
-#BriefMensuelBourse #Investissement #PEA #ETF #Bourse
-#Python #DataScience #YahooFinance #Boursorama #Prediction"""
-
-    def _build(hook: str, perf_mode: str, pot_mode: str, sec_with_links: bool) -> str:
-        """Construit le post complet avec les paramètres de liens donnés."""
-        perf_rows = "\n\n".join(_row_perf_post(r.to_dict(), i, links_mode=perf_mode)
+    def _build(hook: str, with_bench: bool, with_subtitles: bool,
+               with_cta_emojis: bool, with_share: bool, hashtags: str) -> str:
+        """Construit le post complet. Liens BR+YF TOUJOURS présents."""
+        # Liens toujours en BR + YF (intouchables)
+        perf_rows = "\n\n".join(_row_perf_post(r.to_dict(), i, links_mode="br_yf")
                                 for i, (_, r) in enumerate(rk.top_perf_all.head(N_TOP).iterrows(), 1))
-        pot_rows = "\n\n".join(_row_pot_post(r.to_dict(), i, links_mode=pot_mode)
+        pot_rows = "\n\n".join(_row_pot_post(r.to_dict(), i, links_mode="br_yf")
                                for i, (_, r) in enumerate(rk.top_conv_all.head(N_TOP).iterrows(), 1))
-        sec_blocks = "\n\n".join(_block_sec_aligned_post(s, with_links=sec_with_links)
+        sec_blocks = "\n\n".join(_block_sec_aligned_post(s, with_links=True)
                                  for s in rk.sec_aligned[:N_SECTORS_ALIGNED])
-        return f"""\
-{hook}
+
+        # En-tête (bench optionnel)
+        head = (bench_line if with_bench else "") + hook
+
+        # Sous-titres Top 5 (optionnels)
+        perf_sub = f"\n{perf_subtitle}" if with_subtitles else ""
+        pot_sub  = f"\n{pot_subtitle}"  if with_subtitles else ""
+
+        cta = _build_cta(with_emojis=with_cta_emojis, with_share=with_share, hashtags=hashtags)
+
+        return f"""{head}
 
 {BAR_S}
 📊 BRIEF BOURSE · {period_fr}
 {BAR_S}
 
-📈 TOP 5 PERFORMANCES — {prev_month_fr}
-Le plus monté ce mois-ci (PEA+CTO).
+📈 TOP 5 PERFORMANCES — {prev_month_fr}{perf_sub}
 
 {perf_rows}
 
 {BAR_S}
 
-⭐ TOP 5 POTENTIEL (cible + dividende)
-Score = cible 12m + div. ★★★★★ = consensus achat fort.
+⭐ TOP 5 POTENTIEL (cible + dividende){pot_sub}
 
 {pot_rows}
 
@@ -1493,26 +1509,25 @@ Score = cible 12m + div. ★★★★★ = consensus achat fort.
 
 {BAR_S}
 
-{cta_etc}"""
+{cta}"""
 
-    # ── Stratégie progressive : on essaye chaque niveau jusqu'à rentrer ─
+    # ── Cascade de dégradation (liens INTOUCHABLES partout) ──────────
     levels = [
-        # (description, hook, perf_mode, pot_mode, sec_with_links)
-        ("N0 : Top BR+YF + secteurs avec liens",   hook_normal, "br_yf",   "br_yf",   True),
-        ("N1 : Top BR+YF + secteurs sans liens",   hook_normal, "br_yf",   "br_yf",   False),
-        ("N2 : Top BR-only + secteurs sans liens", hook_normal, "br_only", "br_only", False),
-        ("N3 : Hook court + Top BR-only + sect sans liens", hook_court, "br_only", "br_only", False),
-        ("N4 : Hook court + Top PRED sans liens + sect sans liens", hook_court, "br_only", "none", False),
-        ("N5 : Hook court + Top PERF sans liens + sect sans liens", hook_court, "none", "none", False),
+        # (description, hook, with_bench, with_subtitles, with_cta_emojis, with_share, hashtags)
+        ("N0 : Tout",                                       hook_normal, True,  True,  True,  True,  hashtags_full),
+        ("N1 : Drop hook long",                             hook_court,  True,  True,  True,  True,  hashtags_full),
+        ("N2 : + Drop CTA emojis",                          hook_court,  True,  True,  False, True,  hashtags_full),
+        ("N3 : + Drop Épingle/Partage + sous-titres",       hook_court,  True,  False, False, False, hashtags_full),
+        ("N4 : + Drop 5 hashtags",                          hook_court,  True,  False, False, False, hashtags_min),
+        ("N5 : + Drop bench_line",                          hook_court,  False, False, False, False, hashtags_min),
     ]
 
     final_post = ""
-    chosen_level = None
-    for desc, hook, pm, pp, swl in levels:
-        candidate = _build(hook, pm, pp, swl)
+    candidate = ""
+    for desc, hook, wb, ws, we, wsh, hts in levels:
+        candidate = _build(hook, wb, ws, we, wsh, hts)
         if len(candidate) <= LINKEDIN_POST_MAX:
             final_post = candidate
-            chosen_level = desc
             log.info("  ✅ Niveau retenu : %s (%d/%d chars)",
                      desc, len(candidate), LINKEDIN_POST_MAX)
             break
@@ -1521,11 +1536,11 @@ Score = cible 12m + div. ★★★★★ = consensus achat fort.
                      desc, len(candidate), LINKEDIN_POST_MAX)
 
     if not final_post:
-        # Toutes les versions ont échoué — on tronque brutalement la dernière
+        # Dernier recours (très rare) : tronquer brutalement
         final_post = candidate[:LINKEDIN_POST_MAX - 50] + "\n\n[Tronqué]"
-        log.error("❌ Toutes les versions dépassent 3000 chars — tronqué à %d", len(final_post))
+        log.error("❌ Toutes les versions dépassent %d chars — tronqué à %d",
+                  LINKEDIN_POST_MAX, len(final_post))
 
-    # ⚠️ comment_text TOUJOURS vide (1 seul post demandé par le user)
     return final_post, ""
 
 
@@ -1703,6 +1718,9 @@ body {
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
 .sec-cell-tk { color:var(--blue); font-family:'JetBrains Mono';
   font-weight:600; font-size:11px; letter-spacing:0.3px; margin-top:2px; }
+.sec-cell-detail { color:var(--text-mid); font-size:10px;
+  letter-spacing:0.3px; margin-top:3px; font-family:'JetBrains Mono';
+  font-variant-numeric:tabular-nums; }
 .sec-cell-score { font-family:'Inter',sans-serif; font-weight:800;
   font-size:18px; letter-spacing:-0.5px; text-align:right; }
 .sec-cell-empty { color:var(--dim); font-size:11px; font-style:italic;
@@ -1913,6 +1931,8 @@ def _row_conv_html(rank: int, r: dict) -> str:
     reco_lb = r.get("reco_label") or "—"
     n_an    = int(r.get("analyst_count", 0) or 0)
     target  = fmt_signed_pct(r.get("target_pct"))
+    div_pct = r.get("div_pct", 0) or 0
+    div_str = f" · 💰 {div_pct:.1f}%" if div_pct > 0 else ""
     score   = r.get("total_pct")
     score_s = fmt_signed_pct(score)
     name    = smart_trunc(cap_name(r.get("name", "")), 26)
@@ -1931,7 +1951,7 @@ def _row_conv_html(rank: int, r: dict) -> str:
   <div class="row-num">
     <div class="big tabnum {perf_class(score)}">{score_s}</div>
     <div class="small">POTENTIEL TOTAL</div>
-    <div class="small-2">🎯 Cible 12 mois : {target}</div>
+    <div class="small-2">🎯 Cible {target}{div_str}</div>
   </div>
 </div>"""
 
@@ -1950,12 +1970,16 @@ def _sec_cell_html(row: dict | None, side: str) -> str:
     flag    = get_flag(row["ticker"])
     score   = fmt_signed_pct(row.get("total_pct"))
     score_c = perf_class(row.get("total_pct"))
+    target  = fmt_signed_pct(row.get("target_pct"))
+    div_pct = row.get("div_pct", 0) or 0
+    div_str = f" · 💰 {div_pct:.1f}%" if div_pct > 0 else ""
     name    = smart_trunc(cap_name(row.get("name", "")), 20)
     return f"""<div class="sec-cell has-{side}">
   <div class="sec-cell-flag">{flag}</div>
   <div class="sec-cell-info">
     <div class="sec-cell-name">{html_lib.escape(name)}</div>
     <div class="sec-cell-tk">{row["ticker"]}</div>
+    <div class="sec-cell-detail">🎯 {target}{div_str}</div>
   </div>
   <div class="sec-cell-score tabnum {score_c}">{score}</div>
 </div>"""
@@ -2080,7 +2104,7 @@ def html_sectors(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> s
             rows += _row_sec_hidden_aligned()
 
     body = f"""<div class="body">
-  <div class="dual-title">TOP {N_SECTORS_ALIGNED} <span class="or">PRÉDICTION PAR SECTEUR</span></div>
+  <div class="dual-title">TOP <span class="or">PRÉDICTION PAR SECTEUR</span></div>
   <div class="dual-sub">Meilleur ticker PEA vs meilleur ticker CTO par secteur GICS  ·  Score = potentiel cible + dividende  ·  Tri par max(PEA,CTO)</div>
   {headers_html}
   {rows}
@@ -2132,7 +2156,7 @@ def html_cta(rk: Rankings, snapshot: str, period_fr: str) -> str:
         <div class="reaction-sub">Adore</div>
       </div>
     </div>
-    <div class="cta-quiz-q">💬 Réagis selon ta stratégie + commente</div>
+    <div class="cta-quiz-q">💬 Et toi, quelle est ta stratégie ?</div>
     <div class="cta-quiz-hint">Lis bien la légende sous chaque emoji 👇</div>
   </div>
   <div class="next-brief-badge">
