@@ -1511,7 +1511,6 @@ FUN (40-50%) = stock-picking diversifié, 1 action / secteur min."""
         cta = _build_cta(with_emojis=with_cta_emojis, with_share=with_share, hashtags=hashtags)
 
         return f"""{head}
-
 {BAR_S}
 📊 BRIEF BOURSE · {period_fr}
 {BAR_S}
@@ -1535,8 +1534,6 @@ FUN (40-50%) = stock-picking diversifié, 1 action / secteur min."""
 {BAR_S}
 
 {rule_dor}
-
-{BAR_S}
 
 {cta}"""
 
