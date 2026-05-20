@@ -1369,19 +1369,48 @@ def _ticker_inline(r: dict | None, with_links: bool = True, label: str = "") -> 
 
 def _block_sec_aligned_post(sector_data: dict, with_links: bool = True) -> str:
     """
-    Formate un bloc secteur aligné pour le POST/COMMENTAIRE LinkedIn.
+    Formate un bloc secteur pour le POST : on prend LE MEILLEUR ticker (PEA ou CTO),
+    avec drapeau, score, éligibilité PEA, et 2 liens (BR + YF).
     
     Format :
       💻 Tech. info.
-      🇪🇺 PEA · ASML Holding +24% · 🇳🇱 ASML.AS
-           ↳ https://www.boursorama.com/...
-      🌍 CTO · NVIDIA Corp +45% · 🇺🇸 NVDA
-           ↳ https://www.boursorama.com/...
+      🇺🇸 Accenture plc 🎯 +42.3% · ACN 🌍CTO
+      ↳ 🏛️ BR : https://... · 🔍 YF : https://...
     """
     sec_label, emoji = get_sector_display(sector_data["sector_fr"])
-    pea_line = _ticker_inline(sector_data.get("pea"), with_links=with_links, label="🇪🇺 PEA")
-    cto_line = _ticker_inline(sector_data.get("cto"), with_links=with_links, label="🌍 CTO")
-    return f"{emoji} {sec_label}\n{pea_line}\n{cto_line}"
+    
+    pea = sector_data.get("pea")
+    cto = sector_data.get("cto")
+    
+    if pea is None and cto is None:
+        return f"{emoji} {sec_label}\n—"
+    
+    # Choisir le meilleur des 2 candidats (par total_pct)
+    candidates = []
+    if pea is not None: candidates.append(pea)
+    if cto is not None: candidates.append(cto)
+    best = max(candidates, key=lambda x: x.get("total_pct", 0))
+    
+    flag   = get_flag(best["ticker"])
+    name   = smart_trunc(cap_name(best.get("name", "")), 24)
+    score  = f"{best['total_pct']:+.1f}%"
+    safe_t = safe_ticker(best["ticker"])
+    elig   = "✅PEA" if best.get("pea") else "🌍CTO"
+    
+    line1 = f"{flag} {name} 🎯 {score} · {safe_t} {elig}"
+    
+    if not with_links:
+        return f"{emoji} {sec_label}\n{line1}"
+    
+    # Liens BR + YF (jamais drop, conformément à la règle "liens intouchables")
+    bourso = _safe_url(best.get("boursorama_link"))
+    yahoo  = _safe_url(best.get("yahoo_link"))
+    parts = []
+    if bourso: parts.append(f"🏛️ BR : {bourso}")
+    if yahoo:  parts.append(f"🔍 YF : {yahoo}")
+    links_line = "\n↳ " + " · ".join(parts) if parts else ""
+    
+    return f"{emoji} {sec_label}\n{line1}{links_line}"
 
 
 def _build_post_complete(rk: Rankings, period_fr: str, prev_month_fr: str) -> tuple[str, str]:
