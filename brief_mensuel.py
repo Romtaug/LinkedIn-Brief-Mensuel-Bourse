@@ -1485,7 +1485,7 @@ FUN (40-50%) = stock-picking diversifié, 1 action / secteur min."""
         if with_share:
             parts.append(share_block)
         parts.append("⚠️ « Risque de perte en capital. Ceci n'est pas un conseil. »")
-        parts.append(f"💳 Boursorama via parrainage {CODE_PARRAINAGE} (+100€ chacun) : {PARRAINAGE}")
+        parts.append(f"💳 Boursorama via parrainage {CODE_PARRAINAGE} (+100€) : {PARRAINAGE}")
         parts.append(f"🔔 RDV dans 1 mois pour le brief de {next_month_fr}.")
         parts.append(hashtags)
         return "\n\n".join(parts)
@@ -1527,7 +1527,7 @@ FUN (40-50%) = stock-picking diversifié, 1 action / secteur min."""
 
 {BAR_S}
 
-📂 TOP PRÉDICTIONS PAR SECTEUR (PEA vs CTO)
+📂 TOP PRÉDICTIONS PAR SECTEUR
 
 {sec_blocks}
 
@@ -2189,7 +2189,7 @@ def html_cta(rk: Rankings, snapshot: str, period_fr: str) -> str:
     🚀 À BIENTÔT POUR LE BRIEF DE {next_month.upper()}
   </div>
   <div class="cta-disc">
-    « Risque de perte en capital. Ceci n'est pas un conseil. »
+    « Risque de perte en capital. Ceci n'est pas un conseil »
   </div>
 </div>"""
     return _wrap(body, "À BIENTÔT", snapshot, period_fr, rk.n_total)
