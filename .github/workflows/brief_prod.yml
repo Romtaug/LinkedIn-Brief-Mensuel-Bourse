@@ -1,27 +1,32 @@
 # ═══════════════════════════════════════════════════════════════════════
 #  Brief Mensuel Equity — Workflow PROD
 #  ──────────────────────────────────────────────────────────────────────
-#  Cron : tous les 1-4 du mois à 7h UTC (9h Paris CEST / 8h Paris CET).
-#  Le script vérifie en interne s'il s'agit du premier jour ouvré du mois
-#  → si non, exit 0 propre. Cela permet d'avoir un filet de sécurité
-#  en cas de runner indisponible le jour J.
+#  Cron : tous les 1-7 du mois à 6h UTC (= 8h Paris CEST / 7h Paris CET).
+#  Le script vérifie en interne s'il s'agit du premier jour ouvré
+#  NON FÉRIÉ du mois → si non, exit 0 propre. Range 1-7 pour couvrir
+#  les pires cas (ex : 1er janvier vendredi férié + weekend → 4 janvier).
+#
+#  Une fois le pipeline data + vidéo terminé, le script SLEEP jusqu'à
+#  09:00 Paris pile (gestion DST automatique via zoneinfo Europe/Paris)
+#  avant d'envoyer le webhook Make.com → publication LinkedIn dans
+#  le créneau optimal B2B (pic d'engagement 9h-11h).
 #
 #  Univers complet (~1480 tickers : SP500 + STOXX + DAX + MDAX + SBF120 mid
 #  + WIG20 + ASE + Nikkei + TSX60 + ASX50 + HSI).
 #
-#  Durée typique : 20-30 minutes (fetch + encodage vidéo placebo).
+#  Durée typique : 20-30 min fetch/encodage + 30-90 min sleep = 1h-2h.
 # ═══════════════════════════════════════════════════════════════════════
 name: "🚀 Brief Mensuel — PROD"
 
 on:
   schedule:
-    # Tous les 1, 2, 3, 4 du mois à 7h UTC (laisse 4 tentatives au check
-    # "premier jour ouvré" intégré au script — bypass propre si déjà run).
-    - cron: "0 7 1-4 * *"
+    # Tous les 1-7 du mois à 6h UTC. Le script filtre en interne sur
+    # le premier jour ouvré non férié + sleep jusqu'à 09:00 Paris.
+    - cron: "0 6 1-7 * *"
   workflow_dispatch:
     inputs:
       force_run:
-        description: "Forcer le run même si pas le 1er jour ouvré"
+        description: "Forcer le run même si pas le 1er jour ouvré (bypass sleep aussi)"
         type: choice
         required: true
         default: "false"
@@ -32,7 +37,7 @@ on:
 jobs:
   brief-prod:
     runs-on: ubuntu-latest
-    timeout-minutes: 60   # Marge confortable pour fetch + encodage placebo
+    timeout-minutes: 180   # 3h : 30 min fetch + jusqu'à 2h sleep + marge
 
     concurrency:
       group: brief-mensuel-prod
