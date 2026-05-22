@@ -735,12 +735,25 @@ RECO_LABEL_FR = {
     "underperform":"Sous-performance",
 }
 
-def fetch_one(ticker: str, market: str, max_retries: int = 3) -> dict[str, Any] | None:
+def fetch_one(ticker: str, market: str,
+              fx_rates: dict[str, float] | None = None,
+              max_retries: int = 3) -> dict[str, Any] | None:
     """
     Fetch un ticker depuis yfinance + sanity checks.
     Drop si data incomplète ou outlier (split mal géré, etc.).
     
+    Args:
+        ticker     : symbole Yahoo (ex: AAPL, SAN.PA, BARC.L)
+        market     : libellé du marché (pour logs/stats)
+        fx_rates   : taux de change { devise: rate_vers_eur }
+                     Si None → on n'expose pas price_eur (mais price natif OK).
+        max_retries: tentatives avec backoff
+    
     Returns: dict avec toutes les métriques OU None si data inutilisable.
+             Contient notamment :
+               - price        : prix natif (devise locale)
+               - currency     : code ISO (USD, EUR, GBp, JPY, ...)
+               - price_eur    : prix converti en EUR (None si fx_rates absent)
     """
     for attempt in range(max_retries):
         try:
@@ -753,6 +766,7 @@ def fetch_one(ticker: str, market: str, max_retries: int = 3) -> dict[str, Any] 
             name     = info.get("longName") or info.get("shortName") or ticker
             isin     = info.get("isin")
             exchange = info.get("exchange")
+            currency = info.get("currency") or ""    # ex: "USD", "EUR", "GBp"
 
             # ── Sanity checks de base ────────────────────────────────
             if not price or not target or price <= 0:
@@ -808,6 +822,9 @@ def fetch_one(ticker: str, market: str, max_retries: int = 3) -> dict[str, Any] 
             if FILTER_BOURSO_ONLY and not bourso_link:
                 return None
 
+            # ── Conversion EUR (si fx_rates fournis) ─────────────────
+            price_eur = to_eur(price, currency, fx_rates) if fx_rates else None
+
             return {
                 "ticker": ticker,
                 "name": name,
@@ -815,6 +832,8 @@ def fetch_one(ticker: str, market: str, max_retries: int = 3) -> dict[str, Any] 
                 "sector_fr": SECTOR_FR[sector],
                 "market": market,
                 "price": round(price, 2),
+                "currency": currency,
+                "price_eur": price_eur,
                 "div_pct": round(div_pct, 2),
                 "target_pct": round(target_pct, 2),
                 "target_high_pct":   round(target_high_pct, 2)   if target_high_pct   is not None else None,
@@ -838,11 +857,12 @@ def fetch_one(ticker: str, market: str, max_retries: int = 3) -> dict[str, Any] 
     return None
 
 
-def fetch_universe(tickers: list[str], market: str) -> list[dict[str, Any]]:
+def fetch_universe(tickers: list[str], market: str,
+                   fx_rates: dict[str, float] | None = None) -> list[dict[str, Any]]:
     """Fetch parallèle d'un univers de tickers. N_WORKERS threads."""
     rows: list[dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=N_WORKERS) as pool:
-        futs = {pool.submit(fetch_one, t, market): t for t in tickers}
+        futs = {pool.submit(fetch_one, t, market, fx_rates): t for t in tickers}
         for fut in tqdm(as_completed(futs), total=len(futs),
                         desc=f"  {market:<6}", ncols=70, leave=False):
             r = fut.result()
@@ -875,6 +895,108 @@ def fetch_benchmarks() -> list[dict[str, Any]]:
             log.warning("  ⚠️  Benchmark %s : %s", bm["ticker"], e)
             results.append({**bm, "perf_1m": None})
     return results
+
+
+# ═════════════════════════════════════════════════════════════════════
+#  7bis. FX RATES - Conversion des prix natifs vers EUR
+# ═════════════════════════════════════════════════════════════════════
+# Toutes les devises rencontrées dans l'univers Bourso-compatible.
+# La paire `EURXXX=X` Yahoo donne "combien d'XXX pour 1 EUR".
+# Donc pour convertir XXX → EUR, on fait : price_eur = price * (1 / rate).
+# Cas particulier : .L (London) cote en GBp (pence), pas en GBP (livres).
+# 1 GBp = 1/100 GBP, donc rate_GBp = rate_GBP / 100.
+
+FX_PAIRS = {
+    "USD": "EURUSD=X",   # US (.US implicite = pas de suffixe)
+    "GBP": "EURGBP=X",   # rare sur yfinance (.L = GBp en général)
+    "GBp": "EURGBP=X",   # London → pence
+    "JPY": "EURJPY=X",   # Tokyo .T
+    "CAD": "EURCAD=X",   # Toronto .TO
+    "CHF": "EURCHF=X",   # Suisse .SW
+    "AUD": "EURAUD=X",   # Sydney .AX
+    "HKD": "EURHKD=X",   # Hong Kong .HK
+    "SEK": "EURSEK=X",   # Stockholm .ST
+    "DKK": "EURDKK=X",   # Copenhagen .CO
+    "NOK": "EURNOK=X",   # Oslo .OL
+    "PLN": "EURPLN=X",   # Warsaw .WA
+}
+
+# Fallback hardcodé si yfinance fail (taux approximatifs mai 2026).
+# À actualiser manuellement de temps en temps, mais sert juste de filet de sécu.
+FX_FALLBACK: dict[str, float] = {
+    "EUR": 1.0,
+    "USD": 0.92,
+    "GBP": 1.18,
+    "GBp": 0.0118,
+    "JPY": 0.0061,
+    "CAD": 0.68,
+    "CHF": 1.04,
+    "AUD": 0.61,
+    "HKD": 0.118,
+    "SEK": 0.087,
+    "DKK": 0.134,
+    "NOK": 0.087,
+    "PLN": 0.235,
+}
+
+
+def fetch_fx_rates() -> dict[str, float]:
+    """
+    Récupère les taux de change yfinance pour convertir chaque devise vers EUR.
+    
+    Returns: dict {code_devise_ISO: taux_pour_convertir_en_EUR}
+             Ex: {"EUR": 1.0, "USD": 0.92, "GBp": 0.0118, "JPY": 0.0061, ...}
+    
+    Stratégie :
+      1. EUR = 1.0 (référence)
+      2. Pour chaque devise : fetch EURXXX=X (= XXX par 1 EUR), on inverse → 1/rate
+      3. Cas .L : GBp = GBP/100 → on divise encore par 100
+      4. Si fetch fail → fallback hardcodé (FX_FALLBACK)
+    """
+    rates: dict[str, float] = {"EUR": 1.0}
+    log.info("\n💱  Fetch FX rates (devises → EUR)…")
+    for ccy, pair in FX_PAIRS.items():
+        try:
+            t = yf.Ticker(pair)
+            info = t.info
+            # Plusieurs champs possibles selon yfinance version
+            rate_eur_to_x = (info.get("regularMarketPrice")
+                             or info.get("previousClose")
+                             or info.get("bid")
+                             or info.get("ask"))
+            if rate_eur_to_x and rate_eur_to_x > 0:
+                if ccy == "GBp":
+                    # London cote en pence (1 GBp = GBP/100)
+                    rates[ccy] = 1.0 / (rate_eur_to_x * 100.0)
+                else:
+                    rates[ccy] = 1.0 / rate_eur_to_x
+                log.info("   %s = %.6f EUR  (%s = %.4f)",
+                         ccy, rates[ccy], pair, rate_eur_to_x)
+            else:
+                rates[ccy] = FX_FALLBACK.get(ccy, 1.0)
+                log.warning("   ⚠️  %s : taux indispo → fallback %.6f",
+                            ccy, rates[ccy])
+            time.sleep(0.5)  # Politesse Yahoo
+        except Exception as e:
+            rates[ccy] = FX_FALLBACK.get(ccy, 1.0)
+            log.warning("   ⚠️  %s : %s → fallback %.6f", ccy, e, rates[ccy])
+    log.info("✅  %d devises chargées", len(rates))
+    return rates
+
+
+def to_eur(price: float | None, currency: str | None,
+           fx_rates: dict[str, float]) -> float | None:
+    """
+    Convertit un prix natif vers EUR. None si impossible.
+    """
+    if price is None or pd.isna(price):
+        return None
+    if not currency:
+        return None
+    rate = fx_rates.get(currency, FX_FALLBACK.get(currency))
+    if rate is None:
+        return None
+    return round(float(price) * rate, 2)
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -951,6 +1073,23 @@ def clean_reco(label: Any) -> str:
 def fmt_signed_pct(v: Any) -> str:
     if v is None or pd.isna(v): return "-"
     return f"{v:+.1f}%"
+
+def fmt_price(price_eur: Any) -> str:
+    """
+    Formate un prix EUR pour affichage. Ex: '148.30€'.
+    Retourne '-' si valeur invalide / manquante / None / NaN.
+    """
+    if price_eur is None:
+        return "-"
+    try:
+        if pd.isna(price_eur):
+            return "-"
+    except (TypeError, ValueError):
+        return "-"
+    try:
+        return f"{float(price_eur):.2f}€"
+    except (TypeError, ValueError):
+        return "-"
 
 def perf_class(v: Any) -> str:
     """Classe CSS pour la couleur (positive/négative/neutre)."""
@@ -1209,6 +1348,12 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
         perf = bm.get("perf_1m")
         perf_str = f"{perf:+.2f}%" if perf is not None else "N/A"
         log.info("   %s %s : %s", bm["flag"], bm["label"], perf_str)
+
+    # ── 1bis. Fetch FX rates (devises natives → EUR) ─────────────────
+    # ⚠️  Doit être fait AVANT les universes (pour pouvoir convertir
+    #     chaque prix immédiatement) mais APRÈS les benchmarks (anti rate-limit).
+    fx_rates = fetch_fx_rates()
+
     log.info("   💤 Pause %ds avant fetch universes…", SLEEP_AFTER_BENCH)
     time.sleep(SLEEP_AFTER_BENCH)
 
@@ -1222,7 +1367,7 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
         for market in ["SP500", "STOXX", "DAX", "INTL"]:
             sub = [t for t, m in test_selection if m == market]
             if sub:
-                rows.extend(fetch_universe(sub, market))
+                rows.extend(fetch_universe(sub, market, fx_rates))
                 if market != "INTL":
                     time.sleep(3)  # Mini pause même en test
         n_total = len(test_selection)
@@ -1244,7 +1389,7 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
             (all_de,   "DAX"),
             (all_intl, "INTL"),
         ]:
-            rows.extend(fetch_universe(tickers, market))
+            rows.extend(fetch_universe(tickers, market, fx_rates))
             if market != "INTL":  # Pas de pause après le dernier
                 log.info("   💤 Pause %ds anti rate-limit Yahoo (entre %s et suivant)...",
                          SLEEP_BETWEEN_UNI, market)
@@ -1269,6 +1414,15 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
              int(df["pea"].sum()), int((~df["pea"]).sum()))
     log.info("👥  Couverture analystes : %d/%d",
              int((df["analyst_count"] > 0).sum()), len(df))
+    # Couverture conversion EUR : combien de tickers ont un prix EUR valide
+    n_eur_ok = int(df["price_eur"].notna().sum())
+    log.info("💱  Couverture conversion EUR : %d/%d (%.0f%%)",
+             n_eur_ok, len(df), 100 * n_eur_ok / max(1, len(df)))
+    # Diversité devises (debug)
+    if "currency" in df.columns:
+        ccy_counts = df["currency"].value_counts().to_dict()
+        log.info("💱  Devises rencontrées : %s",
+                 ", ".join(f"{k}={v}" for k, v in ccy_counts.items()))
 
     return df, benchmarks, snapshot, period, suffix
 
@@ -1467,27 +1621,29 @@ def _build_links(r: dict, mode: str) -> str:
 
 def _row_perf_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
     """Formate une ligne du Top 5 PERF pour le POST."""
-    flag   = get_flag(r["ticker"])
-    medal  = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}.get(rank, f"{rank:02d}")
-    name   = smart_trunc(cap_name(r.get("name", "")), 28)
-    elig   = "✅PEA" if r.get("pea") else "🌍CTO"
-    val    = f"{r['perf_1m']:+.1f}%" if pd.notna(r.get("perf_1m")) else "-"
-    safe_t = safe_ticker(r["ticker"])
-    links  = _build_links(r, links_mode)
-    return f"{medal} {name} 📈 {val} · {flag} {safe_t} {elig}{links}"
+    flag    = get_flag(r["ticker"])
+    medal   = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}.get(rank, f"{rank:02d}")
+    name    = smart_trunc(cap_name(r.get("name", "")), 28)
+    elig    = "✅PEA" if r.get("pea") else "🌍CTO"
+    val     = f"{r['perf_1m']:+.1f}%" if pd.notna(r.get("perf_1m")) else "-"
+    price_s = fmt_price(r.get("price_eur"))
+    safe_t  = safe_ticker(r["ticker"])
+    links   = _build_links(r, links_mode)
+    return f"{medal} {name} 📈 {val} · 💵 {price_s} · {flag} {safe_t} {elig}{links}"
 
 
 def _row_pot_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
     """Formate une ligne du Top 5 POTENTIEL pour le POST."""
-    flag   = get_flag(r["ticker"])
-    medal  = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}.get(rank, f"{rank:02d}")
-    name   = smart_trunc(cap_name(r.get("name", "")), 24)
-    elig   = "✅PEA" if r.get("pea") else "🌍CTO"
-    score  = f"{r['total_pct']:+.1f}%"
-    stars  = reco_stars(r.get("reco_mean"))
-    safe_t = safe_ticker(r["ticker"])
-    links  = _build_links(r, links_mode)
-    return f"{medal} {name} 🎯 {score} {stars} · {flag} {safe_t} {elig}{links}"
+    flag    = get_flag(r["ticker"])
+    medal   = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}.get(rank, f"{rank:02d}")
+    name    = smart_trunc(cap_name(r.get("name", "")), 24)
+    elig    = "✅PEA" if r.get("pea") else "🌍CTO"
+    score   = f"{r['total_pct']:+.1f}%"
+    stars   = reco_stars(r.get("reco_mean"))
+    price_s = fmt_price(r.get("price_eur"))
+    safe_t  = safe_ticker(r["ticker"])
+    links   = _build_links(r, links_mode)
+    return f"{medal} {name} 🎯 {score} {stars} · 💵 {price_s} · {flag} {safe_t} {elig}{links}"
 
 
 def _row_sec_post(r: dict, with_2_links: bool = True) -> str:
@@ -1565,13 +1721,14 @@ def _block_sec_aligned_post(sector_data: dict, with_links: bool = True) -> str:
     if cto is not None: candidates.append(cto)
     best = max(candidates, key=lambda x: x.get("total_pct", 0))
     
-    flag   = get_flag(best["ticker"])
-    name   = smart_trunc(cap_name(best.get("name", "")), 24)
-    score  = f"{best['total_pct']:+.1f}%"
-    safe_t = safe_ticker(best["ticker"])
-    elig   = "✅PEA" if best.get("pea") else "🌍CTO"
+    flag    = get_flag(best["ticker"])
+    name    = smart_trunc(cap_name(best.get("name", "")), 24)
+    score   = f"{best['total_pct']:+.1f}%"
+    price_s = fmt_price(best.get("price_eur"))
+    safe_t  = safe_ticker(best["ticker"])
+    elig    = "✅PEA" if best.get("pea") else "🌍CTO"
     
-    line1 = f"{flag} {name} 🎯 {score} · {safe_t} {elig}"
+    line1 = f"{flag} {name} 🎯 {score} · 💵 {price_s} · {safe_t} {elig}"
     
     if not with_links:
         return f"{emoji} {sec_label}\n{line1}"
@@ -2094,6 +2251,7 @@ def _row_perf_html(rank: int, r: dict) -> str:
     perf_s  = fmt_signed_pct(perf)
     target  = fmt_signed_pct(r.get("target_pct"))
     div     = f"💰 {r['div_pct']:.1f}%" if r.get("div_pct", 0) > 0 else ""
+    price_s = fmt_price(r.get("price_eur"))
     name = smart_trunc(cap_name(r.get("name", "")), 28)
     alt     = "alt" if rank % 2 == 0 else ""
     sec_label, sec_emoji = get_sector_display(r.get("sector_fr", ""))
@@ -2104,6 +2262,7 @@ def _row_perf_html(rank: int, r: dict) -> str:
     <div class="name">{html_lib.escape(name)}</div>
     <div class="ticker">{flag}&nbsp;{r["ticker"]} · {sec_emoji} {html_lib.escape(sec_label)}</div>
     <div class="meta">
+      <span><span class="k">COURS</span><span class="tabnum">{price_s}</span></span>
       <span><span class="k">CIBLE</span><span class="tabnum">{target}</span></span>
       {f'<span>{div}</span>' if div else ''}
     </div>
@@ -2126,6 +2285,7 @@ def _row_conv_html(rank: int, r: dict) -> str:
     target  = fmt_signed_pct(r.get("target_pct"))
     div_pct = r.get("div_pct", 0) or 0
     div_str = f" · 💰 {div_pct:.1f}%" if div_pct > 0 else ""
+    price_s = fmt_price(r.get("price_eur"))
     score   = r.get("total_pct")
     score_s = fmt_signed_pct(score)
     name = smart_trunc(cap_name(r.get("name", "")), 36)
@@ -2145,7 +2305,7 @@ def _row_conv_html(rank: int, r: dict) -> str:
   <div class="row-num">
     <div class="big tabnum {perf_class(score)}">{score_s}</div>
     <div class="small">POTENTIEL TOTAL</div>
-    <div class="small-2">🎯 Cible {target}{div_str}</div>
+    <div class="small-2">💵 {price_s} · 🎯 {target}{div_str}</div>
   </div>
 </div>"""
 
@@ -2166,13 +2326,14 @@ def _sec_cell_html(row: dict | None, side: str) -> str:
     target  = fmt_signed_pct(row.get("target_pct"))
     div_pct = row.get("div_pct", 0) or 0
     div_str = f" · 💰 {div_pct:.1f}%" if div_pct > 0 else ""
+    price_s = fmt_price(row.get("price_eur"))
     name    = smart_trunc(cap_name(row.get("name", "")), 20)
     return f"""<div class="sec-cell has-{side}">
   <div class="sec-cell-flag">{flag}</div>
   <div class="sec-cell-info">
     <div class="sec-cell-name">{html_lib.escape(name)}</div>
     <div class="sec-cell-tk">{row["ticker"]}</div>
-    <div class="sec-cell-detail">🎯 {target}{div_str}</div>
+    <div class="sec-cell-detail">💵 {price_s} · 🎯 {target}{div_str}</div>
   </div>
   <div class="sec-cell-score tabnum {score_c}">{score}</div>
 </div>"""
