@@ -1052,14 +1052,19 @@ def is_french_holiday(d: date) -> bool:
 
 def is_first_business_day_of_month(today: date | None = None) -> bool:
     """
-    True si aujourd'hui est le premier jour ouvré NON FÉRIÉ du mois.
-    Logique : on part du 1er du mois, on avance tant que c'est
-    weekend OU férié français. Le jour cible doit matcher `today`.
+    True si aujourd'hui est le premier jour ouvré "publiable" du mois.
+    Logique : on part du 1er du mois, on avance tant que le jour est :
+      - un weekend (samedi/dimanche)
+      - un férié français (métropole)
+      - un JEUDI (créneau déjà occupé par d'autres posts LinkedIn récurrents)
+    Le jour cible doit matcher `today`.
     """
     if today is None:
         today = date.today()
     d = date(today.year, today.month, 1)
-    while d.weekday() >= 5 or is_french_holiday(d):
+    # 3 = jeudi (skippé : autre post hebdo), 5 = samedi, 6 = dimanche
+    EXCLUDED_WEEKDAYS = {3, 5, 6}
+    while d.weekday() in EXCLUDED_WEEKDAYS or is_french_holiday(d):
         d += timedelta(days=1)
     return today == d
 
