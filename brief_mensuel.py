@@ -131,7 +131,7 @@ DUR_COVER        = 5.0
 DUR_TOP_PERF     = 6.5
 DUR_TOP_PRED     = 6.5
 DUR_SECTORS      = 6.5
-DUR_CTA          = 5.0            # Long pour que le badge "À BIENTÔT" soit bien visible
+DUR_CTA          = 5.5            # Long pour que le badge "À BIENTÔT" soit bien visible
 TOTAL_DURATION   = DUR_COVER + DUR_TOP_PERF + DUR_TOP_PRED + DUR_SECTORS + DUR_CTA  # 30s
 
 # ── Vidéo : effets ────────────────────────────────────────────────────
@@ -1451,7 +1451,7 @@ Frais, biais, hasard : tout joue contre toi en stock-picking pur.
 Solution : ETF en socle, stock-picking pour le fun.
 Ce brief alimente la 2e partie."""
 
-    hook_court = f"🚨 {N_ACTIONS_DISPLAY} actions analysées ce mois-ci."
+    hook_court = f"🚨 {N_ACTIONS_DISPLAY} actions analysées."
 
     # ── Sous-titres explicatifs (optionnels dès N3) ─────────────────
     perf_subtitle = "Le plus monté ce mois-ci (PEA+CTO)."
@@ -1472,10 +1472,10 @@ Ce brief alimente la 2e partie."""
 
     # ── Règle d'or (TOUJOURS présente, jamais drop) ─────────────────
     rule_dor = f"""🎯 RÈGLE D'OR
-SOCLE (50-60%) = 2 ETF mondiaux.
-🇺🇸 ETF S&P 500 {ETF_SP500_URL}
-🇪🇺 ETF STOXX 600 {ETF_STOXX_URL}
-FUN (40-50%) = stock-picking diversifié, 1 action / secteur min."""
+SOCLE 50-60% = 2 ETF mondiaux
+🇺🇸 S&P 500 {ETF_SP500_URL}
+🇪🇺 STOXX 600 {ETF_STOXX_URL}
+FUN 40-50% = stock-picking, 1 action/secteur"""
 
     def _build_cta(with_emojis: bool, with_share: bool, hashtags: str) -> str:
         """Construit le bloc CTA final selon les flags."""
@@ -1485,8 +1485,8 @@ FUN (40-50%) = stock-picking diversifié, 1 action / secteur min."""
         if with_share:
             parts.append(share_block)
         parts.append("⚠️ « Risque de perte en capital. Ceci n'est pas un conseil. »")
-        parts.append(f"💳 Boursorama via parrainage {CODE_PARRAINAGE} (+100€) : {PARRAINAGE}")
-        parts.append(f"🔔 RDV dans 1 mois pour le brief de {next_month_fr}.")
+        parts.append(f"💳 Parrainage Boursorama {CODE_PARRAINAGE} (+100€) : {PARRAINAGE}")
+        parts.append(f"🔔 Prochain brief : {next_month_fr}.")
         parts.append(hashtags)
         return "\n\n".join(parts)
 
@@ -1930,12 +1930,13 @@ def _row_perf_html(rank: int, r: dict) -> str:
     div     = f"💰 {r['div_pct']:.1f}%" if r.get("div_pct", 0) > 0 else ""
     name    = smart_trunc(cap_name(r.get("name", "")), 26)
     alt     = "alt" if rank % 2 == 0 else ""
+    sec_label, sec_emoji = get_sector_display(r.get("sector_fr", ""))
     return f"""
 <div class="row {alt}">
   <div class="rk {medal}">{rank:02d}</div>
   <div class="row-main">
     <div class="name">{html_lib.escape(name)}</div>
-    <div class="ticker">{flag}&nbsp;{r["ticker"]}</div>
+    <div class="ticker">{flag}&nbsp;{r["ticker"]} · {sec_emoji} {html_lib.escape(sec_label)}</div>
     <div class="meta">
       <span><span class="k">CIBLE</span><span class="tabnum">{target}</span></span>
       {f'<span>{div}</span>' if div else ''}
@@ -1954,7 +1955,7 @@ def _row_conv_html(rank: int, r: dict) -> str:
     medal   = {1:"gold", 2:"silver", 3:"bronze"}.get(rank, "")
     rm      = r.get("reco_mean")
     stars   = reco_stars(rm)
-    reco_lb = r.get("reco_label") or "-"
+    reco_lb = r.get("reco_label") or "—"
     n_an    = int(r.get("analyst_count", 0) or 0)
     target  = fmt_signed_pct(r.get("target_pct"))
     div_pct = r.get("div_pct", 0) or 0
@@ -1963,12 +1964,13 @@ def _row_conv_html(rank: int, r: dict) -> str:
     score_s = fmt_signed_pct(score)
     name    = smart_trunc(cap_name(r.get("name", "")), 26)
     alt     = "alt" if rank % 2 == 0 else ""
+    sec_label, sec_emoji = get_sector_display(r.get("sector_fr", ""))
     return f"""
 <div class="row {alt}">
   <div class="rk {medal}">{rank:02d}</div>
   <div class="row-main">
     <div class="name">{html_lib.escape(name)}</div>
-    <div class="ticker">{flag}&nbsp;{r["ticker"]}</div>
+    <div class="ticker">{flag}&nbsp;{r["ticker"]} · {sec_emoji} {html_lib.escape(sec_label)}</div>
     <div class="meta">
       <span class="stars {reco_color_class(rm)}">{stars}</span>
       <span><span class="k">{html_lib.escape(reco_lb)}</span> ({n_an})</span>
@@ -1980,7 +1982,6 @@ def _row_conv_html(rank: int, r: dict) -> str:
     <div class="small-2">🎯 Cible {target}{div_str}</div>
   </div>
 </div>"""
-
 
 def _sec_cell_html(row: dict | None, side: str) -> str:
     """
