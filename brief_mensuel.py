@@ -64,9 +64,12 @@ import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, time as dt_time, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
+
+PARIS_TZ = ZoneInfo("Europe/Paris")
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -998,17 +1001,100 @@ def _safe_url(v: Any) -> str | None:
 #  9. SNAPSHOTS (sauvegarde mensuelle pour archivage / future diff)
 # ═════════════════════════════════════════════════════════════════════
 
+def _easter_date(year: int) -> date:
+    """
+    Calcule la date de Pâques (dimanche) pour une année donnée.
+    Algorithme de Gauss/Meeus (grégorien). Aucune dépendance externe.
+    """
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d_ = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d_ - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return date(year, month, day)
+
+
+def french_holidays(year: int) -> set[date]:
+    """
+    Retourne l'ensemble des jours fériés français pour une année donnée
+    (métropole). Inclut les fixes et les mobiles (Pâques, Ascension,
+    Pentecôte).
+    """
+    easter = _easter_date(year)
+    return {
+        date(year, 1, 1),               # Jour de l'an
+        easter + timedelta(days=1),     # Lundi de Pâques
+        date(year, 5, 1),               # Fête du Travail
+        date(year, 5, 8),               # Victoire 1945
+        easter + timedelta(days=39),    # Ascension (jeudi)
+        easter + timedelta(days=50),    # Lundi de Pentecôte
+        date(year, 7, 14),              # Fête Nationale
+        date(year, 8, 15),              # Assomption
+        date(year, 11, 1),              # Toussaint
+        date(year, 11, 11),             # Armistice
+        date(year, 12, 25),             # Noël
+    }
+
+
+def is_french_holiday(d: date) -> bool:
+    """True si `d` est un jour férié français (métropole)."""
+    return d in french_holidays(d.year)
+
+
 def is_first_business_day_of_month(today: date | None = None) -> bool:
     """
-    True si aujourd'hui est le premier jour ouvré du mois (lundi-vendredi).
-    Si 1er = samedi/dimanche → reporte au lundi suivant.
+    True si aujourd'hui est le premier jour ouvré NON FÉRIÉ du mois.
+    Logique : on part du 1er du mois, on avance tant que c'est
+    weekend OU férié français. Le jour cible doit matcher `today`.
     """
     if today is None:
         today = date.today()
     d = date(today.year, today.month, 1)
-    while d.weekday() >= 5:  # 5 = samedi, 6 = dimanche
+    while d.weekday() >= 5 or is_french_holiday(d):
         d += timedelta(days=1)
     return today == d
+
+
+def sleep_until_paris(hour: int = 9, minute: int = 0) -> None:
+    """
+    Bloque l'exécution jusqu'à ce que l'heure locale Paris atteigne
+    `hour:minute` du jour courant. Gère DST automatiquement via zoneinfo.
+
+    Si l'heure cible est déjà passée → no-op (log warning).
+    Bypass en TEST_MODE / FORCE_RUN pour ne pas bloquer les tests.
+    """
+    if TEST_MODE or _env_bool("FORCE_RUN", default=False):
+        log.info("⏭️  sleep_until_paris bypass (TEST_MODE / FORCE_RUN)")
+        return
+
+    now_paris = datetime.now(PARIS_TZ)
+    target = datetime.combine(
+        now_paris.date(), dt_time(hour=hour, minute=minute), tzinfo=PARIS_TZ
+    )
+    wait_s = (target - now_paris).total_seconds()
+
+    if wait_s <= 0:
+        log.warning(
+            "⚠️  Heure cible %02d:%02d Paris déjà passée (now=%s) — publication immédiate",
+            hour, minute, now_paris.strftime("%H:%M:%S"),
+        )
+        return
+
+    log.info(
+        "⏰  Attente jusqu'à %02d:%02d Paris (now=%s, sleep=%.0f min)",
+        hour, minute, now_paris.strftime("%H:%M:%S"), wait_s / 60,
+    )
+    time.sleep(wait_s)
+    log.info("✅  Heure cible atteinte → envoi webhook")
 
 
 def rotate_snapshots(max_keep: int = MAX_SNAPSHOTS) -> None:
@@ -2727,6 +2813,10 @@ def main() -> int:
             if size_b64_mb > 5:
                 log.warning("⚠️  Payload base64 (%.1f MB) > 5 MB limite Make.com Core/Free !",
                             size_b64_mb)
+
+            # ── Sleep jusqu'à 09:00 Paris pile (best slot LinkedIn B2B) ──
+            banner("⏰  ATTENTE CRÉNEAU OPTIMAL (09:00 Paris)")
+            sleep_until_paris(hour=9, minute=0)
 
             send_webhook(snapshot, period_fr, post, comment,
                          video_b64, video_path, rk.n_total)
