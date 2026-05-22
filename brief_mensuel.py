@@ -2094,7 +2094,7 @@ def _row_perf_html(rank: int, r: dict) -> str:
     perf_s  = fmt_signed_pct(perf)
     target  = fmt_signed_pct(r.get("target_pct"))
     div     = f"💰 {r['div_pct']:.1f}%" if r.get("div_pct", 0) > 0 else ""
-    name = smart_trunc(cap_name(r.get("name", "")), 36)
+    name = smart_trunc(cap_name(r.get("name", "")), 28)
     alt     = "alt" if rank % 2 == 0 else ""
     sec_label, sec_emoji = get_sector_display(r.get("sector_fr", ""))
     return f"""
