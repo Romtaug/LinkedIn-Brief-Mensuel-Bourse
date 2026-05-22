@@ -1458,9 +1458,8 @@ Ce brief alimente la 2e partie."""
     pot_subtitle  = "Score = cible 12m + div. ★★★★★ = consensus achat fort."
 
     # ── Hashtags (10 ou 5) ──────────────────────────────────────────
-    hashtags_full = ("#BriefMensuelBourse #Investissement #PEA #ETF #Bourse\n"
-                     "#Python #DataScience #YahooFinance #Boursorama #Prediction")
-    hashtags_min  = "#Bourse #PEA #ETF #Boursorama #YahooFinance #Prediction"  
+    hashtags_full = "#Bourse #PEA #ETF #YahooFinance #Boursorama #Prediction" 
+    hashtags_min  = "#Bourse #PEA #ETF #YahooFinance #Boursorama #Prediction"  
 
     # ── Blocs CTA optionnels ────────────────────────────────────────
     cta_emojis_block = """💬 Choisis ta réaction selon ta stratégie :
@@ -1517,7 +1516,7 @@ FUN 40-50% = stock-picking, 1 action/secteur"""
 📊 BRIEF BOURSE · {period_fr}
 {BAR_S}
 
-📈 TOP {N_TOP} PERFORMANCES - {prev_month_fr}{perf_sub}
+📈 TOP {N_TOP} PERFORMANCES - {prev_month_fr.split()[0]}{perf_sub}
 
 {perf_rows}
 
