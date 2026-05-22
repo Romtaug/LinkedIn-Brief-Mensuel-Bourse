@@ -1611,11 +1611,11 @@ def _build_links(r: dict, mode: str) -> str:
     bourso = _safe_url(r.get("boursorama_link"))
     yahoo  = _safe_url(r.get("yahoo_link"))
     parts = []
-    if bourso: parts.append(f"🏛️ BR : {bourso}")
-    if yahoo and mode == "br_yf": parts.append(f"🔍 YF : {yahoo}")
+    if bourso: parts.append(f"🏛️ {bourso}")
+    if yahoo and mode == "br_yf": parts.append(f"🔍 {yahoo}")
     # Si pas de BR mais YF dispo (cas avec FILTER_BOURSO_ONLY=False), on garde YF en fallback
     if not bourso and yahoo and mode == "br_only":
-        parts.append(f"🔍 YF : {yahoo}")
+        parts.append(f"🔍 {yahoo}")
     return ("\n↳ " + " · ".join(parts)) if parts else ""
 
 
@@ -1658,9 +1658,9 @@ def _row_sec_post(r: dict, with_2_links: bool = True) -> str:
     bourso = _safe_url(r.get("boursorama_link"))
     yahoo  = _safe_url(r.get("yahoo_link"))
     parts = []
-    if bourso: parts.append(f"🏛️ BR : {bourso}")
-    if yahoo and with_2_links: parts.append(f"🔍 YF : {yahoo}")
-    if not bourso and yahoo:   parts.append(f"🔍 YF : {yahoo}")
+    if bourso: parts.append(f"🏛️ {bourso}")
+    if yahoo and with_2_links: parts.append(f"🔍 {yahoo}")
+    if not bourso and yahoo:   parts.append(f"🔍 {yahoo}")
     links = "\n↳ " + " · ".join(parts) if parts else ""
 
     return f"{emoji} {sec_label} · {name} {score} · {flag} {safe_t} {elig}{links}"
@@ -1705,7 +1705,7 @@ def _block_sec_aligned_post(sector_data: dict, with_links: bool = True) -> str:
     Format :
       💻 Tech. info.
       🇺🇸 Accenture plc 🎯 +42.3% · ACN 🌍CTO
-      ↳ 🏛️ BR : https://... · 🔍 YF : https://...
+      ↳ 🏛️ https://... · 🔍 https://...
     """
     sec_label, emoji = get_sector_display(sector_data["sector_fr"])
     
@@ -1737,8 +1737,8 @@ def _block_sec_aligned_post(sector_data: dict, with_links: bool = True) -> str:
     bourso = _safe_url(best.get("boursorama_link"))
     yahoo  = _safe_url(best.get("yahoo_link"))
     parts = []
-    if bourso: parts.append(f"🏛️ BR : {bourso}")
-    if yahoo:  parts.append(f"🔍 YF : {yahoo}")
+    if bourso: parts.append(f"🏛️ {bourso}")
+    if yahoo:  parts.append(f"🔍 {yahoo}")
     links_line = "\n↳ " + " · ".join(parts) if parts else ""
     
     return f"{emoji} {sec_label}\n{line1}{links_line}"
