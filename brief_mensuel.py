@@ -84,7 +84,7 @@ def _env_bool(key: str, default: bool = False) -> bool:
 # ── Modes & quantités ────────────────────────────────────────────────
 TEST_MODE          = _env_bool("TEST_MODE", default=True)
 N_TICKERS_TEST     = 30            # ← TOTAL en mode test (mélangé toutes zones)
-N_TOP              = 5             # Top 5 Perf + Top 5 Pred (post)
+N_TOP              = 4             # Top 5 Perf + Top 5 Pred (post)
 N_TOP_VIDEO        = 10            # Top 10 dans la vidéo
 N_SECTOR_PER_COL   = 10            # (Legacy) 10 secteurs en PEA + 10 en CTO
 N_SECTORS_ALIGNED  = 11            # 11 secteurs GICS alignés PEA vs CTO côte à côte
@@ -1460,7 +1460,7 @@ Ce brief alimente la 2e partie."""
     # ── Hashtags (10 ou 5) ──────────────────────────────────────────
     hashtags_full = ("#BriefMensuelBourse #Investissement #PEA #ETF #Bourse\n"
                      "#Python #DataScience #YahooFinance #Boursorama #Prediction")
-    hashtags_min  = "#BriefMensuelBourse #Bourse #PEA #ETF #Boursorama #YahooFinance #Prediction #Python"  
+    hashtags_min  = "#Bourse #PEA #ETF #Boursorama #YahooFinance #Prediction"  
 
     # ── Blocs CTA optionnels ────────────────────────────────────────
     cta_emojis_block = """💬 Choisis ta réaction selon ta stratégie :
@@ -1484,9 +1484,11 @@ FUN 40-50% = stock-picking, 1 action/secteur"""
             parts.append(cta_emojis_block)
         if with_share:
             parts.append(share_block)
-        parts.append("⚠️ « Risque de perte en capital. Ceci n'est pas un conseil. »")
-        parts.append(f"💳 Parrainage Boursorama {CODE_PARRAINAGE} (+100€) : {PARRAINAGE}")
-        parts.append(f"🔔 Prochain brief : {next_month_fr}.")
+        parts.append(
+            "⚠️ « Risque de perte en capital. Ceci n'est pas un conseil. »\n"
+            f"💳 Parrainage Boursorama {CODE_PARRAINAGE} (+100€) : {PARRAINAGE}\n"
+            f"🔔 Prochain brief : {next_month_fr}."
+        )
         parts.append(hashtags)
         return "\n\n".join(parts)
 
@@ -1515,13 +1517,13 @@ FUN 40-50% = stock-picking, 1 action/secteur"""
 📊 BRIEF BOURSE · {period_fr}
 {BAR_S}
 
-📈 TOP 5 PERFORMANCES - {prev_month_fr}{perf_sub}
+📈 TOP {N_TOP} PERFORMANCES - {prev_month_fr}{perf_sub}
 
 {perf_rows}
 
 {BAR_S}
 
-⭐ TOP 5 POTENTIELS (cible + dividende){pot_sub}
+⭐ TOP {N_TOP} POTENTIELS (cible + dividende){pot_sub}
 
 {pot_rows}
 
