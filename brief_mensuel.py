@@ -1783,8 +1783,8 @@ def _build_post_complete(rk: Rankings, period_fr: str, prev_month_fr: str) -> tu
     pot_subtitle  = "Score = cible 12m + div. ★★★★★ = consensus achat fort."
 
     # ── Hashtags (10 ou 5) ──────────────────────────────────────────
-    hashtags_full = "#Bourse #PEA #ETF #YahooFinance #Boursorama #Consensus"
-    hashtags_min  = "#Bourse #PEA #ETF #YahooFinance #Boursorama #Consensus"  
+    hashtags_full = "#Bourse #YahooFinance #Boursorama #Consensus"
+    hashtags_min  = "#Bourse #YahooFinance #Boursorama #Consensus"  
 
     # ── Blocs CTA optionnels ────────────────────────────────────────
     cta_emojis_block = """💬 Choisis ta réaction selon ta stratégie :
