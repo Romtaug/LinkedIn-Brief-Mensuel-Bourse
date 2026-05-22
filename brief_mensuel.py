@@ -98,7 +98,7 @@ SLEEP_BETWEEN_UNI  = 20            # secondes entre 2 univers (anti rate-limit)
 SLEEP_AFTER_BENCH  = 10            # secondes après les benchmarks avant fetch universe
 
 # ── LinkedIn ─────────────────────────────────────────────────────────
-LINKEDIN_POST_MAX  = 3950         # Limite officielle API LinkedIn UGC Posts
+LINKEDIN_POST_MAX  = 4000         # Limite officielle API LinkedIn UGC Posts
 LINKEDIN_COMMENT_MAX = 1250        # Limite officielle commentaires LinkedIn
 N_ACTIONS_DISPLAY  = "+1000"       # Texte figé dans le hook (peu importe la valeur réelle)
 
@@ -1760,7 +1760,7 @@ def _build_post_complete(rk: Rankings, period_fr: str, prev_month_fr: str) -> tu
       N5 : + Drop bench_line "📊 Marché en..."
     """
     next_month_fr = _next_month_fr(period_fr)
-    BAR_S = "━" * 26
+    BAR_S = "━" * 13
 
     # ── Bench line (optionnel dès N5) ───────────────────────────────
     bench_line = ""
