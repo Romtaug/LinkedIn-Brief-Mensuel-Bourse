@@ -1,0 +1,16 @@
+name: keepalive
+on:
+  schedule:
+    - cron: "0 0 15 * *"  # le 15 du mois (entre 2 briefs)
+  workflow_dispatch:
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Empty commit
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git commit --allow-empty -m "🔄 keepalive $(date +%Y-%m-%d)"
+          git push
