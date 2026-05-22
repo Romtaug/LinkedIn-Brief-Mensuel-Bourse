@@ -308,7 +308,7 @@ SP500 = [
     "TAP","MDLZ","MPWR","MNST","MCO","MS","MOS","MSI","MSCI","NDAQ","NTAP","NFLX",
     "NEM","NWSA","NWS","NEE","NKE","NI","NDSN","NSC","NTRS","NOC","NCLH","NRG",
     "NUE","NVDA","NVR","NXPI","ORLY","OXY","ODFL","OMC","ON","OKE","ORCL","OTIS",
-    "PCAR","PKG","PLTR","PANW","PARA","PH","PAYX","PAYC","PYPL","PNR","PEP","PFE",
+    "PCAR","PKG","PLTR","PANW","PSKY","PH","PAYX","PAYC","PYPL","PNR","PEP","PFE",
     "PCG","PM","PSX","PNW","PNC","POOL","PPG","PPL","PFG","PG","PGR","PLD",
     "PRU","PEG","PTC","PSA","PHM","PWR","QCOM","DGX","RL","RJF","RTX","O",
     "REG","REGN","RF","RSG","RMD","RVTY","ROK","ROL","ROP","ROST","RCL","SPGI",
@@ -436,7 +436,7 @@ _STOXX_NATIONAL = (
     # ASE - Grèce .AT (PEA, marché EEE)
     + ["AEGN.AT","ALPHA.AT","ARAIG.AT","BELA.AT","CENER.AT","ELPE.AT","ETE.AT",
        "EUROB.AT","EXAE.AT","GEKTERNA.AT","HTO.AT","JUMBO.AT","LAMDA.AT",
-       "METLEN.AT","MOH.AT","MYTIL.AT","OPAP.AT","OTE.AT","PPC.AT","TPEIR.AT",
+       "METLEN.AT","MOH.AT","MYTIL.AT","ALWN.AT","OTE.AT","PPC.AT","TPEIR.AT",
        "SARANTI.AT","TENERGY.AT","VIO.AT"]
 )
 STOXX = sorted(set(_STOXX_NATIONAL))
