@@ -13,7 +13,7 @@
 
   🆕 v10 - Changelog vs v7 :
     • Rate limit yfinance corrigé : 4 workers, benchmarks d'abord, sleep 15s
-    • Section secteurs renommée "TOP 10 PREDICTION PAR SECTEUR" (10 secteurs GICS alignés PEA vs CTO côte à côte)
+    • Section secteurs renommée "TOP 10 POTENTIELS PAR SECTEUR" (10 secteurs GICS alignés PEA vs CTO côte à côte)
     • Fix bug NaN dans liens BR : helper _safe_url() filtre None/NaN/"nan" pour ne pas afficher "BR : nan"
     • Défilement ligne par ligne aussi sur la section secteurs
     • Tickers avec 2 liens (BR + YF) dans Top 5 Perf + Top 5 Pred + Secteurs
@@ -91,7 +91,7 @@ N_SECTORS_ALIGNED  = 11            # 11 secteurs GICS alignés PEA vs CTO côte 
 FILTER_BOURSO_ONLY = True          # ⚠️ Si True : on skip TOUS les tickers sans lien Boursorama
                                    # (= filtre dur sur Japon, HK, Canada, Australie, Norvège, etc.)
 N_WORKERS          = 4             # ← 4 = sweet spot anti rate-limit yfinance
-SLEEP_BETWEEN_UNI  = 15            # secondes entre 2 univers (anti rate-limit)
+SLEEP_BETWEEN_UNI  = 20            # secondes entre 2 univers (anti rate-limit)
 SLEEP_AFTER_BENCH  = 10            # secondes après les benchmarks avant fetch universe
 
 # ── LinkedIn ─────────────────────────────────────────────────────────
@@ -322,6 +322,70 @@ SP500 = [
     "WDC","WY","WSM","WMB","WTW","WDAY","WYNN","XEL","XYL","YUM","ZBRA","ZBH","ZTS",
 ]
 
+# ── S&P 400 MidCap (~400 US mid caps - Boursorama compatible) ────────
+SP400_MID = [
+    "ACIW","ACM","ADC","AFG","AGCO","ALE","ALK","ALV","AMG","AN","APG","APLE",
+    "ARW","ASGN","ATR","AUB","AVA","AVNT","AXS","AYI","BC","BCC","BCO","BCPC",
+    "BERY","BFAM","BFH","BIO","BJ","BKH","BLD","BMI","BPOP","BWA","BWXT","BXMT",
+    "BYD","CACI","CADE","CASY","CATY","CBSH","CBT","CDP","CFR","CHCO","CHDN",
+    "CHE","CHX","CIEN","CIVI","CLF","CLH","CMC","CNH","CNM","CNXC","CMA",
+    "COKE","COLM","CR","CRC","CROX","CRS","CSL","CUBE","CW","DECK","DINO",
+    "DKS","DLB","DOCS","DT","DTM","DY","EAT","EEFT","EHC","ELS","EME","ENS",
+    "ENV","EPC","EPR","EQH","ESAB","ESI","ESNT","ETSY","EVR","EWBC","EXEL",
+    "EXLS","FAF","FBP","FCN","FFIN","FHB","FHI","FHN","FIVE","FIX","FLG",
+    "FLO","FLR","FN","FNB","FOUR","FR","FRPT","FSS","FTI","G","GAP","GATX",
+    "GBCI","GFF","GGG","GHC","GME","GMED","GNTX","GNW","GO","GPI","GPK","GTLS",
+    "GTLB","GXO","H","HASI","HE","HELE","HGV","HOG","HOMB","HP","HQY","HRB",
+    "HUBG","HXL","IART","IBKR","IBOC","IBP","ICUI","IDA","IDCC","IEX","INGR",
+    "INSP","IPAR","IRDM","ITT","JEF","JLL","JWN","JXN","KAI","KBR","KD","KEX",
+    "KMPR","KNF","KNSL","KRC","KSS","LAMR","LANC","LECO","LEG","LITE","LIVN",
+    "LNC","LNTH","LOPE","LSCC","LSTR","M","MAN","MASI","MAT","MATX","MC","MDU",
+    "MEDP","MGY","MIDD","MLI","MMS","MOG-A","MORN","MSA","MSM","MTG","MTH",
+    "MTSI","MTZ","MUR","MUSA","NBIX","NBR","NCNO","NEU","NFG","NJR","NNN","NOG",
+    "NOV","NSA","NSP","NTNX","NVST","NWE","OC","OGE","OGN","OGS","OHI","OII",
+    "OLED","OLLI","OLN","OMF","ORI","OSCR","OSK","OVV","OZK","PB","PBF","PCH",
+    "PCTY","PCVX","PEN","PII","PIPR","PNFP","POR","POST","PR","PRGO","PRI",
+    "PRVA","PSN","PTEN","R","RBC","RDN","RGA","RGEN","RGLD","RH","RHI","RIVN",
+    "RL","RNR","RPM","RRC","RRX","RUSHA","RYAN","SAIA","SAIC","SAM","SANM",
+    "SBS","SEE","SF","SFM","SHC","SHOO","SIGI","SITE","SKX","SLAB","SLG","SLGN",
+    "SLM","SMG","SNDR","SNV","SNX","SON","SR","SRPT","SSB","SSD","ST","STAG",
+    "STWD","SWX","SXT","TCBI","TDC","TDS","TDW","TEX","TFX","TGNA","THC","THG",
+    "THO","TKR","TMHC","TNL","TOL","TPH","TPX","TREX","TRMK","TRNO","TTC","TTEK",
+    "TWLO","TWO","UAA","UA","UFPI","UGI","UHS","UNF","UNFI","UNM","USFD","UTHR",
+    "VC","VFC","VLY","VMI","VNO","VNT","VOYA","VSAT","VSCO","VVV","WAFD","WAL",
+    "WBS","WCC","WEN","WEX","WERN","WEX","WH","WLK","WMS","WOLF","WPC","WSC",
+    "WSO","WTRG","WTS","WU","X","XPO","XRX","YELP","ZD","ZWS","ZION",
+]
+
+# ── NASDAQ 100 hors-SP500 (tech US Bourso-compatible) ─────────────────
+NASDAQ100_EXTRA = [
+    "ADP","ASML","AZN","BIDU","BIIB","BKR","CDW","CHKP","CMCSA","COIN","COST",
+    "CPRT","CRWD","CSGP","CSX","CTAS","CTSH","DLTR","DOCU","DXCM","EA","EBAY",
+    "EXC","FANG","FAST","FTNT","GFS","GILD","HON","ILMN","INTC","INTU","ISRG",
+    "JD","KDP","KHC","KLAC","LCID","LRCX","LULU","MAR","MCHP","MDLZ","MELI",
+    "META","MNST","MRVL","MSFT","MU","NXPI","ODFL","ORLY","PANW","PAYX","PCAR",
+    "PDD","PEP","PYPL","REGN","ROST","SBUX","SGEN","SIRI","SNPS","TEAM","TMUS",
+    "TROW","TXN","VRSK","VRSN","VRTX","WBA","WDAY","XEL","ZM","ZS",
+]
+# Note : beaucoup chevauchent SP500. Le set() dans run_data_pipeline dédupliquera.
+
+# ── FTSE 250 (UK mid-caps Bourso-compatible) ──────────────────────────
+FTSE250 = [
+    "4IMI.L","ABDN.L","ALPH.L","APAX.L","APTD.L","AVON.L","BAB.L","BBOX.L","BME.L",
+    "BOY.L","BRSC.L","BRWM.L","BVIC.L","BWY.L","CAPC.L","CAY.L","CCC.L","CCL.L",
+    "CINE.L","CLI.L","CRST.L","CTY.L","DARK.L","DOM.L","DPH.L","DTY.L","ELM.L",
+    "ENT.L","ESP.L","ESYS.L","EXPP.L","FCSS.L","FOUR.L","FUTR.L","GAW.L","GFRD.L",
+    "GFTU.L","GNS.L","GPE.L","GRG.L","HAS.L","HFD.L","HFEL.L","HGT.L","HICL.L",
+    "HMSO.L","HOC.L","HSL.L","HSV.L","HSX.L","HTG.L","HVO.L","IGG.L","INCH.L",
+    "INDV.L","INPP.L","INVP.L","JE.L","JMAT.L","KIE.L","LMP.L","MAB1.L","MAB2.L",
+    "MGAM.L","MGGT.L","MKS.L","MONY.L","MRO.L","MSLH.L","MTRO.L","NCC.L","NESF.L",
+    "OXIG.L","PAGE.L","PCT.L","PETS.L","PIN.L","PNN.L","PSON.L","QQ.L","RAT.L",
+    "RDW.L","RHL.L","RHM.L","RMV.L","RNK.L","RNO.L","RSW.L","SAVE.L","SCT.L",
+    "SDP.L","SHA.L","SOG.L","SPI.L","SPT.L","SQZ.L","SXS.L","SYNC.L","TBCG.L",
+    "TET.L","TIFS.L","TRN.L","TRY.L","TUI.L","TYMN.L","UKW.L","ULE.L","VCT.L",
+    "VEC.L","VED.L","VLE.L","VSVS.L","VTY.L","WG.L","WIZZ.L","WKP.L","WMH.L",
+    "WTAN.L","YOUG.L",
+]
 # ── DAX 40 (Allemagne large-cap) ─────────────────────────────────────
 DAX = [
     "ADS.DE","AIR.DE","ALV.DE","BAS.DE","BAYN.DE","BMW.DE","BNR.DE","CBK.DE",
@@ -568,10 +632,29 @@ def get_flag(ticker: str) -> str:
 # ── Pills d'indices affichées dans la cover (1 ligne pleine largeur) ─
 # Limité à ~10 pills max pour tenir sur 1 ligne à 1080px. Le reste va dans "+N AUTRES".
 INDEX_PILLS_ALL = [
-    "SP 500", "CAC 40", "DAX", "MDAX", "STOXX EUROPE", "SBF 120",
-    "FTSE 100", "WIG 20", "ASE", "NIKKEI 225", "TSX 60", "ASX 50", "HANG SENG",
+    # 🏛️ Bourso-compatible (tri par market cap DESC)
+    "SP 500",            # 🇺🇸 ~$50T
+    "NASDAQ 100",        # 🇺🇸 ~$25T (NOUVEAU)
+    "STOXX EUROPE",      # 🇪🇺 ~€14T
+    "SP 400 MID",        # 🇺🇸 ~$3.5T (NOUVEAU)
+    "FTSE 100",          # 🇬🇧 ~$2.5T
+    "SBF 120",           # 🇫🇷 ~$2T
+    "CAC 40",            # 🇫🇷 ~$2T
+    "DAX",               # 🇩🇪 ~€1.9T
+    "AEX 25",            # 🇳🇱 ~$1T
+    "IBEX 35",           # 🇪🇸 ~$800B
+    "FTSE MIB",          # 🇮🇹 ~$700B
+    "FTSE 250",          # 🇬🇧 ~$500B (NOUVEAU)
+    "MDAX",              # 🇩🇪 ~€430B
+    # 🌍 NON-Bourso (tri par market cap DESC)
+    "NIKKEI 225",        # 🇯🇵 ~$5T
+    "HANG SENG",         # 🇭🇰 ~$2.5T
+    "TSX 60",            # 🇨🇦 ~$1.8T
+    "ASX 50",            # 🇦🇺 ~$1.5T
+    "ASE",               # 🇬🇷 ~$100B
+    "WIG 20",            # 🇵🇱 ~$100B
 ]
-INDEX_PILLS_VISIBLE_MAX = 10   # Au-delà → ajout d'un pill "+N AUTRES" final
+INDEX_PILLS_VISIBLE_MAX = 10
 
 
 # ── Benchmarks (3 indices fetched en PREMIER pour éviter rate-limit) ─
@@ -1023,8 +1106,8 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
     suffix   = "_test" if TEST_MODE else ""
 
     # ── Construction des univers ─────────────────────────────────────
-    all_us   = list(dict.fromkeys(SP500))
-    all_eu   = list(dict.fromkeys(STOXX + SBF120_MID))
+    all_us   = list(dict.fromkeys(SP500 + SP400_MID + NASDAQ100_EXTRA))
+    all_eu   = list(dict.fromkeys(STOXX + SBF120_MID + FTSE250))
     all_de   = list(dict.fromkeys(DAX + MDAX))
     all_intl = list(dict.fromkeys(NIKKEI + TSX60 + ASX50 + HSI))
 
@@ -1121,7 +1204,7 @@ def export_xlsx(df: pd.DataFrame, snapshot: str, suffix: str) -> Path:
         df.dropna(subset=["perf_1m"]).sort_values("perf_1m", ascending=False).to_excel(
             w, sheet_name="By Perf 1m", index=False)
         df.dropna(subset=["reco_mean"]).sort_values("reco_mean").to_excel(
-            w, sheet_name="By PREDICTION", index=False)
+            w, sheet_name="By POTENTIELS", index=False)
         best_per_sec.to_excel(w, sheet_name="By Sector", index=False)
 
     log.info("💾  xlsx 6 onglets → %s", path)
@@ -1474,13 +1557,11 @@ Ce brief alimente la 2e partie."""
 SOCLE 50-60% = 2 ETF mondiaux
 🇺🇸 S&P 500 {ETF_SP500_URL}
 🇪🇺 STOXX 600 {ETF_STOXX_URL}
-FUN 40-50% = stock-picking, 1 action/secteur"""
+FUN 40-50% = stock-picking, 1 action/secteur minimum"""
 
     def _build_cta(with_emojis: bool, with_share: bool, hashtags: str) -> str:
         """Construit le bloc CTA final selon les flags."""
         parts = []
-        if with_emojis:
-            parts.append(cta_emojis_block)
         parts.append(
             "⚠️ « Risque de perte en capital. Ceci n'est pas un conseil. »\n"
             f"💳 Parrainage Boursorama {CODE_PARRAINAGE} (+100€) : {PARRAINAGE}\n"
@@ -1526,7 +1607,7 @@ FUN 40-50% = stock-picking, 1 action/secteur"""
 
 {BAR_S}
 
-📂 TOP PREDICTIONS PAR SECTEUR
+📂 TOP POTENTIELS PAR SECTEUR
 
 {sec_blocks}
 
@@ -1950,7 +2031,7 @@ def _row_perf_html(rank: int, r: dict) -> str:
 
 
 def _row_conv_html(rank: int, r: dict) -> str:
-    """HTML d'une ligne Top PREDICTION dans la vidéo."""
+    """HTML d'une ligne Top POTENTIELS dans la vidéo."""
     flag    = get_flag(r["ticker"])
     medal   = {1:"gold", 2:"silver", 3:"bronze"}.get(rank, "")
     rm      = r.get("reco_mean")
@@ -2072,11 +2153,11 @@ def html_perf(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> str:
     return _wrap(body, f"PERFORMANCES · TOP {N_TOP_VIDEO}", snapshot, period_fr, rk.n_total)
 
 
-# ── HTML : Top 10 PREDICTION (défilement ligne par ligne) ────────────
+# ── HTML : Top 10 POTENTIELS (défilement ligne par ligne) ────────────
 
 def html_conv(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> str:
     """
-    Slide Top 10 PREDICTION, 2 colonnes PEA / CTO.
+    Slide Top 10 POTENTIELS, 2 colonnes PEA / CTO.
     Tri = total_pct desc (cible analystes + dividende).
     """
     pea_data = rk.top_conv_pea.head(N_TOP_VIDEO).to_dict("records")
@@ -2086,7 +2167,7 @@ def html_conv(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> str:
         rows_pea += _row_conv_html(i+1, pea_data[i]) if (i < visible and i < len(pea_data)) else _row_hidden()
         rows_cto += _row_conv_html(i+1, cto_data[i]) if (i < visible and i < len(cto_data)) else _row_hidden()
     body = f"""<div class="body">
-  <div class="dual-title">TOP {N_TOP_VIDEO} <span class="or">PREDICTIONS</span></div>
+  <div class="dual-title">TOP {N_TOP_VIDEO} <span class="or">POTENTIELS</span></div>
   <div class="dual-sub">Consensus analystes (★★★★★ = Achat fort)  ·  Filtre : potentiel total &gt; 0  ·  Score = cible + dividende</div>
   <div class="dual-grid">
     <div class="panel"><div class="panel-head pea">
@@ -2097,14 +2178,14 @@ def html_conv(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> str:
       <div class="panel-info">{rk.n_cto_total} VALEURS</div></div>{rows_cto}</div>
   </div>
 </div>"""
-    return _wrap(body, f"PREDICTIONS · TOP {N_TOP_VIDEO}", snapshot, period_fr, rk.n_total)
+    return _wrap(body, f"POTENTIELS · TOP {N_TOP_VIDEO}", snapshot, period_fr, rk.n_total)
 
 
-# ── HTML : TOP 10 PREDICTION PAR SECTEUR (défilement ligne par ligne) ─
+# ── HTML : TOP 10 POTENTIELS PAR SECTEUR (défilement ligne par ligne) ─
 
 def html_sectors(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> str:
     """
-    Slide TOP PREDICTION PAR SECTEUR - layout aligné PEA vs CTO côte à côte.
+    Slide TOP POTENTIELS PAR SECTEUR - layout aligné PEA vs CTO côte à côte.
     
     11 lignes (1 par secteur GICS) :
       Label secteur | Meilleur ticker PEA dans ce secteur | Meilleur ticker CTO dans ce secteur
@@ -2131,12 +2212,12 @@ def html_sectors(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> s
             rows += _row_sec_hidden_aligned()
 
     body = f"""<div class="body">
-  <div class="dual-title">TOP <span class="or">PREDICTIONS PAR SECTEUR</span></div>
+  <div class="dual-title">TOP <span class="or">POTENTIELS PAR SECTEUR</span></div>
   <div class="dual-sub">Meilleur ticker PEA vs meilleur ticker CTO par secteur GICS  ·  Score = potentiel cible + dividende  ·  Tri par max(PEA,CTO)</div>
   {headers_html}
   {rows}
 </div>"""
-    return _wrap(body, f"PREDICTIONS PAR SECTEUR · TOP {N_SECTORS_ALIGNED}", snapshot, period_fr, rk.n_total)
+    return _wrap(body, f"POTENTIELS PAR SECTEUR · TOP {N_SECTORS_ALIGNED}", snapshot, period_fr, rk.n_total)
 
 
 # ── HTML : Slide CTA finale (11s, badge "À BIENTÔT" sobre bleu) ──────
@@ -2262,8 +2343,8 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
     log.info("🎬 RENDU FRAMES - Top Performances (défilement 10 lignes)")
     # 10 frames de défilement (apparition d'1 ligne par frame), dernière prolongée
     n_anim_frames = N_TOP_VIDEO  # 10
-    anim_duration = DUR_TOP_PERF * 0.65  # 65% pour le défilement = 3.25s
-    hold_duration = DUR_TOP_PERF * 0.35  # 35% pour le hold final = 1.75s
+    anim_duration = DUR_TOP_PERF * 0.55  # 55% pour anim
+    hold_duration = DUR_TOP_PERF * 0.45  # 45% = 2.93s hold final
     per_frame     = anim_duration / n_anim_frames  # 0.325s par frame anim
     for v in range(1, n_anim_frames + 1):
         path = tmpdir / f"02_perf_{v:02d}.png"
@@ -2273,8 +2354,8 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
         dur = per_frame + (hold_duration if v == n_anim_frames else 0.0)
         frames.append((path, dur))
 
-    # ── TOP 10 PREDICTION : défilement 10 frames + hold ─────────────
-    log.info("🎬 RENDU FRAMES - Top Prediction (défilement 10 lignes)")
+    # ── TOP 10 POTENTIELS : défilement 10 frames + hold ─────────────
+    log.info("🎬 RENDU FRAMES - Top POTENTIELS (défilement 10 lignes)")
     for v in range(1, n_anim_frames + 1):
         path = tmpdir / f"03_pred_{v:02d}.png"
         log.info("   ↳ frame pred %d/%d", v, n_anim_frames)
@@ -2282,7 +2363,7 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
         dur = per_frame + (hold_duration if v == n_anim_frames else 0.0)
         frames.append((path, dur))
 
-    # ── TOP 10 PREDICTION PAR SECTEUR : défilement 10 frames + hold ─
+    # ── TOP 10 POTENTIELS PAR SECTEUR : défilement 10 frames + hold ─
     log.info("🎬 RENDU FRAMES - Sectors (défilement %d secteurs alignés PEA vs CTO)", N_SECTORS_ALIGNED)
     for v in range(1, N_SECTORS_ALIGNED + 1):
         path = tmpdir / f"04_sect_{v:02d}.png"
