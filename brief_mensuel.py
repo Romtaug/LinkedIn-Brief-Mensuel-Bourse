@@ -13,7 +13,7 @@
 
   🆕 v10 - Changelog vs v7 :
     • Rate limit yfinance corrigé : 4 workers, benchmarks d'abord, sleep 15s
-    • Section secteurs renommée "TOP 10 PRÉDICTION PAR SECTEUR" (10 secteurs GICS alignés PEA vs CTO côte à côte)
+    • Section secteurs renommée "TOP 10 PREDICTION PAR SECTEUR" (10 secteurs GICS alignés PEA vs CTO côte à côte)
     • Fix bug NaN dans liens BR : helper _safe_url() filtre None/NaN/"nan" pour ne pas afficher "BR : nan"
     • Défilement ligne par ligne aussi sur la section secteurs
     • Tickers avec 2 liens (BR + YF) dans Top 5 Perf + Top 5 Pred + Secteurs
@@ -1454,12 +1454,12 @@ Ce brief alimente la 2e partie."""
     hook_court = f"🚨 {N_ACTIONS_DISPLAY} actions analysées."
 
     # ── Sous-titres explicatifs (optionnels dès N3) ─────────────────
-    perf_subtitle = "Le plus monté ce mois-ci (PEA+CTO)."
+    perf_subtitle = "Les plus fortes hausses (PEA + CTO)."
     pot_subtitle  = "Score = cible 12m + div. ★★★★★ = consensus achat fort."
 
     # ── Hashtags (10 ou 5) ──────────────────────────────────────────
-    hashtags_full = "#Bourse #PEA #ETF #YahooFinance #Boursorama #Prediction" 
-    hashtags_min  = "#Bourse #PEA #ETF #YahooFinance #Boursorama #Prediction"  
+    hashtags_full = "#Bourse #PEA #ETF #YahooFinance #Boursorama #Consensus"
+    hashtags_min  = "#Bourse #PEA #ETF #YahooFinance #Boursorama #Consensus"  
 
     # ── Blocs CTA optionnels ────────────────────────────────────────
     cta_emojis_block = """💬 Choisis ta réaction selon ta stratégie :
@@ -1481,8 +1481,6 @@ FUN 40-50% = stock-picking, 1 action/secteur"""
         parts = []
         if with_emojis:
             parts.append(cta_emojis_block)
-        if with_share:
-            parts.append(share_block)
         parts.append(
             "⚠️ « Risque de perte en capital. Ceci n'est pas un conseil. »\n"
             f"💳 Parrainage Boursorama {CODE_PARRAINAGE} (+100€) : {PARRAINAGE}\n"
@@ -1528,7 +1526,7 @@ FUN 40-50% = stock-picking, 1 action/secteur"""
 
 {BAR_S}
 
-📂 TOP PRÉDICTIONS PAR SECTEUR
+📂 TOP PREDICTIONS PAR SECTEUR
 
 {sec_blocks}
 
@@ -1701,7 +1699,8 @@ body {
   font-size:20px; color:var(--text); letter-spacing:-0.2px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .row-main .ticker { color:var(--blue); font-family:'JetBrains Mono';
-  font-weight:600; font-size:13px; margin-top:3px; letter-spacing:0.3px; }
+  font-weight:600; font-size:13px; margin-top:3px; letter-spacing:0.3px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .row-main .meta { display:flex; gap:14px; margin-top:4px;
   font-size:13px; color:var(--text-mid); letter-spacing:0.3px; }
 .row-main .meta .k { color:var(--dim); margin-right:3px; }
@@ -1929,7 +1928,7 @@ def _row_perf_html(rank: int, r: dict) -> str:
     perf_s  = fmt_signed_pct(perf)
     target  = fmt_signed_pct(r.get("target_pct"))
     div     = f"💰 {r['div_pct']:.1f}%" if r.get("div_pct", 0) > 0 else ""
-    name    = smart_trunc(cap_name(r.get("name", "")), 26)
+    name = smart_trunc(cap_name(r.get("name", "")), 36)
     alt     = "alt" if rank % 2 == 0 else ""
     sec_label, sec_emoji = get_sector_display(r.get("sector_fr", ""))
     return f"""
@@ -1963,7 +1962,7 @@ def _row_conv_html(rank: int, r: dict) -> str:
     div_str = f" · 💰 {div_pct:.1f}%" if div_pct > 0 else ""
     score   = r.get("total_pct")
     score_s = fmt_signed_pct(score)
-    name    = smart_trunc(cap_name(r.get("name", "")), 26)
+    name = smart_trunc(cap_name(r.get("name", "")), 36)
     alt     = "alt" if rank % 2 == 0 else ""
     sec_label, sec_emoji = get_sector_display(r.get("sector_fr", ""))
     return f"""
@@ -2087,7 +2086,7 @@ def html_conv(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> str:
         rows_pea += _row_conv_html(i+1, pea_data[i]) if (i < visible and i < len(pea_data)) else _row_hidden()
         rows_cto += _row_conv_html(i+1, cto_data[i]) if (i < visible and i < len(cto_data)) else _row_hidden()
     body = f"""<div class="body">
-  <div class="dual-title">TOP {N_TOP_VIDEO} <span class="or">PREDICTION</span></div>
+  <div class="dual-title">TOP {N_TOP_VIDEO} <span class="or">PREDICTIONS</span></div>
   <div class="dual-sub">Consensus analystes (★★★★★ = Achat fort)  ·  Filtre : potentiel total &gt; 0  ·  Score = cible + dividende</div>
   <div class="dual-grid">
     <div class="panel"><div class="panel-head pea">
@@ -2098,7 +2097,7 @@ def html_conv(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> str:
       <div class="panel-info">{rk.n_cto_total} VALEURS</div></div>{rows_cto}</div>
   </div>
 </div>"""
-    return _wrap(body, f"PREDICTION · TOP {N_TOP_VIDEO}", snapshot, period_fr, rk.n_total)
+    return _wrap(body, f"PREDICTIONS · TOP {N_TOP_VIDEO}", snapshot, period_fr, rk.n_total)
 
 
 # ── HTML : TOP 10 PREDICTION PAR SECTEUR (défilement ligne par ligne) ─
@@ -2132,12 +2131,12 @@ def html_sectors(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> s
             rows += _row_sec_hidden_aligned()
 
     body = f"""<div class="body">
-  <div class="dual-title">TOP <span class="or">PRÉDICTION PAR SECTEUR</span></div>
+  <div class="dual-title">TOP <span class="or">PREDICTIONS PAR SECTEUR</span></div>
   <div class="dual-sub">Meilleur ticker PEA vs meilleur ticker CTO par secteur GICS  ·  Score = potentiel cible + dividende  ·  Tri par max(PEA,CTO)</div>
   {headers_html}
   {rows}
 </div>"""
-    return _wrap(body, f"PRÉDICTION PAR SECTEUR · TOP {N_SECTORS_ALIGNED}", snapshot, period_fr, rk.n_total)
+    return _wrap(body, f"PREDICTIONS PAR SECTEUR · TOP {N_SECTORS_ALIGNED}", snapshot, period_fr, rk.n_total)
 
 
 # ── HTML : Slide CTA finale (11s, badge "À BIENTÔT" sobre bleu) ──────
@@ -2283,7 +2282,7 @@ def render_frames_to_disk(rk: Rankings, snapshot: str, period_fr: str,
         dur = per_frame + (hold_duration if v == n_anim_frames else 0.0)
         frames.append((path, dur))
 
-    # ── TOP 10 PRÉDICTION PAR SECTEUR : défilement 10 frames + hold ─
+    # ── TOP 10 PREDICTION PAR SECTEUR : défilement 10 frames + hold ─
     log.info("🎬 RENDU FRAMES - Sectors (défilement %d secteurs alignés PEA vs CTO)", N_SECTORS_ALIGNED)
     for v in range(1, N_SECTORS_ALIGNED + 1):
         path = tmpdir / f"04_sect_{v:02d}.png"
