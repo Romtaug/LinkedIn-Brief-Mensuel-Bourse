@@ -760,7 +760,7 @@ def fetch_one(ticker: str, market: str,
             t = yf.Ticker(ticker)
             info = t.info
 
-            price    = info.get("currentPrice") or info.get("regularMarketPrice")
+            price = (info.get("currentPrice") or info.get("regularMarketPrice") or info.get("previousClose"))
             target = info.get("targetMedianPrice") or info.get("targetMeanPrice")
             sector   = info.get("sector")
             name     = info.get("longName") or info.get("shortName") or ticker
