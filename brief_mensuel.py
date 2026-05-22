@@ -1460,7 +1460,7 @@ Ce brief alimente la 2e partie."""
     # ── Hashtags (10 ou 5) ──────────────────────────────────────────
     hashtags_full = ("#BriefMensuelBourse #Investissement #PEA #ETF #Bourse\n"
                      "#Python #DataScience #YahooFinance #Boursorama #Prediction")
-    hashtags_min  = "#BriefMensuelBourse #Investissement #PEA #ETF #Bourse"
+    hashtags_min  = "#BriefMensuelBourse #Bourse #PEA #ETF #Boursorama #YahooFinance #Prediction #Python"  
 
     # ── Blocs CTA optionnels ────────────────────────────────────────
     cta_emojis_block = """💬 Choisis ta réaction selon ta stratégie :
