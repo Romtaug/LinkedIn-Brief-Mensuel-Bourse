@@ -21,7 +21,7 @@
     • Réactions LinkedIn : 👍 J'aime → 💡 Instructif
     • Vidéo 30s pile (Cover 4 / Perf 5 / Pred 5 / Sect 5 / CTA 11)
     • Encodage placebo CRF 12 + audio 320k (quasi-lossless)
-    • Disclaimer harmonisé : « Risque de perte en capital. Ceci n'est pas un conseil. »
+    • Disclaimer harmonisé : « Risque de perte en capital. Ceci n'est pas un conseil en investissement. »
     • Hook : suppression "Sans hype. Juste de la data."
     • "+1000 actions analysées" figé dans le post (valeurs exactes dans la vidéo)
     • Pills d'indices en intro vidéo : 1 ligne pleine largeur + "+X AUTRES" si débordement
@@ -1526,13 +1526,7 @@ def _build_post_complete(rk: Rankings, period_fr: str, prev_month_fr: str) -> tu
             bench_line = f"📊 Marché en {prev_month_fr.lower()} : " + " · ".join(bench_parts) + "\n\n"
 
     # ── Hooks (long / court) ────────────────────────────────────────
-    hook_normal = f"""🚨 {N_ACTIONS_DISPLAY} actions analysées ce mois-ci.
-
-85% des fonds gérés activement se font battre par leur indice sur 10 ans.
-Frais, biais, hasard : tout joue contre toi en stock-picking pur.
-
-Solution : ETF en socle, stock-picking pour le fun.
-Ce brief alimente la 2e partie."""
+    hook_normal = f"🚨 {N_ACTIONS_DISPLAY} actions analysées."
 
     hook_court = f"🚨 {N_ACTIONS_DISPLAY} actions analysées."
 
@@ -1565,7 +1559,7 @@ FUN 40-50% = stock-picking, 1 action/secteur minimum"""
         parts.append(
             "⚠️ « Risque de perte en capital. Ceci n'est pas un conseil. »\n"
             f"💳 Parrainage Boursorama {CODE_PARRAINAGE} (+100€) : {PARRAINAGE}\n"
-            f"🔔 Prochain brief : {next_month_fr}."
+            f"🔔 Prochain brief début {next_month_fr} !"
         )
         parts.append(hashtags)
         return "\n\n".join(parts)
