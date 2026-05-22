@@ -95,7 +95,7 @@ SLEEP_BETWEEN_UNI  = 15            # secondes entre 2 univers (anti rate-limit)
 SLEEP_AFTER_BENCH  = 10            # secondes après les benchmarks avant fetch universe
 
 # ── LinkedIn ─────────────────────────────────────────────────────────
-LINKEDIN_POST_MAX  = 3925         # Limite officielle API LinkedIn UGC Posts
+LINKEDIN_POST_MAX  = 3850         # Limite officielle API LinkedIn UGC Posts
 LINKEDIN_COMMENT_MAX = 1250        # Limite officielle commentaires LinkedIn
 N_ACTIONS_DISPLAY  = "+1000"       # Texte figé dans le hook (peu importe la valeur réelle)
 
