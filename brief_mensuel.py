@@ -761,7 +761,7 @@ def fetch_one(ticker: str, market: str,
             info = t.info
 
             price    = info.get("currentPrice") or info.get("regularMarketPrice")
-            target   = info.get("targetMeanPrice")
+            target = info.get("targetMedianPrice") or info.get("targetMeanPrice")
             sector   = info.get("sector")
             name     = info.get("longName") or info.get("shortName") or ticker
             isin     = info.get("isin")
