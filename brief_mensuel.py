@@ -1764,7 +1764,7 @@ body {
 /* Row : 10 lignes confortables dans 1350px portrait */
 .row { padding:10px 18px; border-bottom:1px solid var(--grid);
   display:grid; grid-template-columns:42px 1fr auto;
-  align-items:center; gap:12px; min-height:84px; }
+  align-items:center; gap:12px; height:96px; overflow:hidden; }
 .row.alt { background:var(--bg-row); }
 .row.hidden { visibility:hidden; }
 .rk { font-family:'Inter',sans-serif; font-weight:800;
