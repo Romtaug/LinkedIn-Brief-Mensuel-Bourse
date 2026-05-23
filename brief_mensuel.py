@@ -1760,7 +1760,7 @@ def _build_post_complete(rk: Rankings, period_fr: str, prev_month_fr: str) -> tu
       N5 : + Drop bench_line "📊 Marché en..."
     """
     next_month_fr = _next_month_fr(period_fr)
-    BAR_S = "━" * 15
+    BAR_S = "━" * 14
 
     # ── Bench line (optionnel dès N5) ───────────────────────────────
     bench_line = ""
