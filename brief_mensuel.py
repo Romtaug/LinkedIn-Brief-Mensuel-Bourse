@@ -1072,7 +1072,7 @@ def clean_reco(label: Any) -> str:
 
 def fmt_signed_pct(v: Any) -> str:
     if v is None or pd.isna(v): return "-"
-    return f"{v:+.1f}%"
+    return f"{v:+.1f}%".replace(".", ",")
 
 def fmt_price(price_eur: Any) -> str:
     """
@@ -1087,7 +1087,7 @@ def fmt_price(price_eur: Any) -> str:
     except (TypeError, ValueError):
         return "-"
     try:
-        return f"{float(price_eur):.2f}€"
+        return f"{float(price_eur):.2f}€".replace(".", ",")
     except (TypeError, ValueError):
         return "-"
 
@@ -1346,7 +1346,7 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
     benchmarks = fetch_benchmarks()
     for bm in benchmarks:
         perf = bm.get("perf_1m")
-        perf_str = f"{perf:+.2f}%" if perf is not None else "N/A"
+        perf_str = f"{perf:+.2f}%".replace(".", ",") if perf is not None else "N/A"
         log.info("   %s %s : %s", bm["flag"], bm["label"], perf_str)
 
     # ── 1bis. Fetch FX rates (devises natives → EUR) ─────────────────
@@ -1625,7 +1625,7 @@ def _row_perf_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
     medal   = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}.get(rank, f"{rank:02d}")
     name    = smart_trunc(cap_name(r.get("name", "")), 28)
     elig    = "✅PEA" if r.get("pea") else "🌍CTO"
-    val     = f"{r['perf_1m']:+.1f}%" if pd.notna(r.get("perf_1m")) else "-"
+    val = fmt_signed_pct(r.get("perf_1m"))
     price_s = fmt_price(r.get("price_eur"))
     safe_t  = safe_ticker(r["ticker"])
     links   = _build_links(r, links_mode)
@@ -1638,7 +1638,7 @@ def _row_pot_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
     medal   = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}.get(rank, f"{rank:02d}")
     name    = smart_trunc(cap_name(r.get("name", "")), 24)
     elig    = "✅PEA" if r.get("pea") else "🌍CTO"
-    score   = f"{r['total_pct']:+.1f}%"
+    score = fmt_signed_pct(r.get("total_pct"))
     stars   = reco_stars(r.get("reco_mean"))
     price_s = fmt_price(r.get("price_eur"))
     safe_t  = safe_ticker(r["ticker"])
@@ -1650,7 +1650,7 @@ def _row_sec_post(r: dict, with_2_links: bool = True) -> str:
     """Formate une ligne secteur pour le POST (1 ou 2 liens selon longueur dispo)."""
     flag   = get_flag(r["ticker"])
     sec_label, emoji = get_sector_display(r["sector_fr"])
-    score  = f"{r['total_pct']:+.1f}%"
+    score  = fmt_signed_pct(r.get("total_pct"))
     name   = smart_trunc(cap_name(r.get("name", "")), 22)
     elig   = "✅PEA" if r.get("pea") else "🌍CTO"
     safe_t = safe_ticker(r["ticker"])
@@ -1683,7 +1683,7 @@ def _ticker_inline(r: dict | None, with_links: bool = True, label: str = "") -> 
         return f"{label} · -"
     flag    = get_flag(r["ticker"])
     name    = smart_trunc(cap_name(r.get("name", "")), 22)
-    score   = f"{r['total_pct']:+.1f}%"
+    score   = fmt_signed_pct(r.get("total_pct"))
     safe_t  = safe_ticker(r["ticker"])
     line1   = f"{label} · {name} {score} · {flag} {safe_t}"
 
@@ -1723,7 +1723,7 @@ def _block_sec_aligned_post(sector_data: dict, with_links: bool = True) -> str:
     
     flag    = get_flag(best["ticker"])
     name    = smart_trunc(cap_name(best.get("name", "")), 24)
-    score   = f"{best['total_pct']:+.1f}%"
+    score   = fmt_signed_pct(best.get("total_pct"))
     price_s = fmt_price(best.get("price_eur"))
     safe_t  = safe_ticker(best["ticker"])
     elig    = "✅PEA" if best.get("pea") else "🌍CTO"
@@ -1760,7 +1760,7 @@ def _build_post_complete(rk: Rankings, period_fr: str, prev_month_fr: str) -> tu
       N5 : + Drop bench_line "📊 Marché en..."
     """
     next_month_fr = _next_month_fr(period_fr)
-    BAR_S = "━" * 13
+    BAR_S = "━" * 15
 
     # ── Bench line (optionnel dès N5) ───────────────────────────────
     bench_line = ""
@@ -1769,14 +1769,14 @@ def _build_post_complete(rk: Rankings, period_fr: str, prev_month_fr: str) -> tu
         for bm in rk.benchmarks:
             perf = bm.get("perf_1m")
             if perf is not None:
-                bench_parts.append(f"{bm['label']} {perf:+.1f}%")
+                bench_parts.append(f"{bm['label']} {fmt_signed_pct(perf)}")
         if bench_parts:
             bench_line = f"📊 Marché en {prev_month_fr.lower()} : " + " · ".join(bench_parts) + "\n\n"
 
     # ── Hooks (long / court) ────────────────────────────────────────
-    hook_normal = f"🚨 {N_ACTIONS_DISPLAY} actions analysées."
+    hook_normal = f"🚨 {N_ACTIONS_DISPLAY} actions analysées !"
 
-    hook_court = f"🚨 {N_ACTIONS_DISPLAY} actions analysées."
+    hook_court = f"🚨 {N_ACTIONS_DISPLAY} actions analysées !"
 
     # ── Sous-titres explicatifs (optionnels dès N3) ─────────────────
     perf_subtitle = "Les plus fortes hausses (PEA + CTO)."
@@ -2013,6 +2013,8 @@ body {
 .row { padding:10px 18px; border-bottom:1px solid var(--grid);
   display:grid; grid-template-columns:42px 1fr auto;
   align-items:center; gap:12px; height:96px; overflow:hidden; }
+.row > * { min-width:0; }
+.row-main { min-width:0; overflow:hidden; }
 .row.alt { background:var(--bg-row); }
 .row.hidden { visibility:hidden; }
 .rk { font-family:'Inter',sans-serif; font-weight:800;
@@ -2041,7 +2043,7 @@ body {
 
 /* Section secteurs ALIGNÉE - 11 lignes, secteur | PEA | CTO */
 .sec-aligned-row { padding:6px 14px; border-bottom:1px solid var(--grid);
-  display:grid; grid-template-columns:200px 1fr 1fr;
+  display:grid; grid-template-columns:140px 1fr 1fr;
   align-items:center; gap:14px; min-height:84px; }
 .sec-aligned-row.hidden { visibility:hidden; }
 .sec-aligned-row.alt { background:var(--bg-row); }
@@ -2049,7 +2051,7 @@ body {
 /* Colonne 1 : Label du secteur */
 .sec-label-col { display:flex; flex-direction:column; gap:2px; }
 .sec-label-emoji { font-size:30px; line-height:1; }
-.sec-label-text { color:var(--text-mid); font-size:10px;
+.sec-label-text { color:var(--text-mid); font-size:12px;
   letter-spacing:1.2px; text-transform:uppercase; font-weight:600;
   line-height:1.2; margin-top:4px; }
 
@@ -2076,7 +2078,7 @@ body {
   text-align:center; grid-column:1/-1; }
 
 /* En-tête section secteurs : labels PEA / CTO sur fond bleu */
-.sec-headers { display:grid; grid-template-columns:200px 1fr 1fr;
+.sec-headers { display:grid; grid-template-columns:140px 1fr 1fr;
   gap:14px; padding:8px 14px; margin-bottom:6px;
   background:var(--bg-pan); border:1px solid var(--grid); }
 .sec-headers .h-label { color:var(--text-mid); font-size:11px;
@@ -2211,7 +2213,7 @@ def html_cover(rk: Rankings, snapshot: str, period_fr: str, frame: int = 3) -> s
                 perf_str = "-"
                 perf_cls = "neut"
             else:
-                perf_str = f"{perf:+.2f}%"
+                perf_str = f"{perf:+.2f}%".replace(".", ",")
                 perf_cls = "pos" if perf > 0 else "neg" if perf < 0 else "neut"
             bench_cards += f"""
 <div class="bench-card">
@@ -2250,7 +2252,7 @@ def _row_perf_html(rank: int, r: dict) -> str:
     perf    = r.get("perf_1m")
     perf_s  = fmt_signed_pct(perf)
     target  = fmt_signed_pct(r.get("target_pct"))
-    div     = f"💰 {r['div_pct']:.1f}%" if r.get("div_pct", 0) > 0 else ""
+    div     = f"💰 {r['div_pct']:.1f}%".replace(".", ",") if r.get("div_pct", 0) > 0 else ""
     price_s = fmt_price(r.get("price_eur"))
     name = smart_trunc(cap_name(r.get("name", "")), 28)
     alt     = "alt" if rank % 2 == 0 else ""
@@ -2284,11 +2286,11 @@ def _row_conv_html(rank: int, r: dict) -> str:
     n_an    = int(r.get("analyst_count", 0) or 0)
     target  = fmt_signed_pct(r.get("target_pct"))
     div_pct = r.get("div_pct", 0) or 0
-    div_str = f" · 💰 {div_pct:.1f}%" if div_pct > 0 else ""
+    div_str = f" · 💰 {div_pct:.1f}%".replace(".", ",") if div_pct > 0 else ""
     price_s = fmt_price(r.get("price_eur"))
     score   = r.get("total_pct")
     score_s = fmt_signed_pct(score)
-    name = smart_trunc(cap_name(r.get("name", "")), 36)
+    name = smart_trunc(cap_name(r.get("name", "")), 28)
     alt     = "alt" if rank % 2 == 0 else ""
     sec_label, sec_emoji = get_sector_display(r.get("sector_fr", ""))
     return f"""
@@ -2325,7 +2327,7 @@ def _sec_cell_html(row: dict | None, side: str) -> str:
     score_c = perf_class(row.get("total_pct"))
     target  = fmt_signed_pct(row.get("target_pct"))
     div_pct = row.get("div_pct", 0) or 0
-    div_str = f" · 💰 {div_pct:.1f}%" if div_pct > 0 else ""
+    div_str = f" · 💰 {div_pct:.1f}%".replace(".", ",") if div_pct > 0 else ""
     price_s = fmt_price(row.get("price_eur"))
     name    = smart_trunc(cap_name(row.get("name", "")), 20)
     return f"""<div class="sec-cell has-{side}">
