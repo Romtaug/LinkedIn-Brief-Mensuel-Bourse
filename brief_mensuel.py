@@ -94,7 +94,7 @@ N_SECTORS_ALIGNED  = 11            # 11 secteurs GICS alignés PEA vs CTO côte 
 FILTER_BOURSO_ONLY = True          # ⚠️ Si True : on skip TOUS les tickers sans lien Boursorama
                                    # (= filtre dur sur Japon, HK, Canada, Australie, Norvège, etc.)
 N_WORKERS          = 4             # ← 4 = sweet spot anti rate-limit yfinance
-SLEEP_BETWEEN_UNI  = 20            # secondes entre 2 univers (anti rate-limit)
+SLEEP_BETWEEN_UNI  = 30            # 20→30s : compense le +600 tickers Russell
 SLEEP_AFTER_BENCH  = 10            # secondes après les benchmarks avant fetch universe
 
 # ── LinkedIn ─────────────────────────────────────────────────────────
@@ -358,6 +358,107 @@ SP400_MID = [
     "VC","VFC","VLY","VMI","VNO","VNT","VOYA","VSAT","VSCO","VVV","WAFD","WAL",
     "WBS","WCC","WEN","WEX","WERN","WEX","WH","WLK","WMS","WOLF","WPC","WSC",
     "WSO","WTRG","WTS","WU","X","XPO","XRX","YELP","ZD","ZWS","ZION",
+]
+
+# ── S&P 600 SmallCap (~600 US small caps qualité - Boursorama compatible) ─
+SP600_SMALL = [
+    "AAOI","AAON","ABCB","ABG","ABM","ABR","ACA","ACAD","ACEL","ACLS","ADEA",
+    "ADMA","ADNT","ADUS","AEIS","AEO","AGS","AGYS","AHCO","AIN","AIR","AIT",
+    "AKR","AL","ALEX","ALG","ALGT","ALK","ALKS","ALRM","AMBC","AMC","AMED",
+    "AMN","AMOT","AMR","AMSF","AMWD","ANDE","ANIP","AORT","APAM","APLE","APOG",
+    "ARCB","ARCH","ARCT","ARI","ARLO","AROC","ASB","ASIX","ASTH","ASTL","ATEN",
+    "ATGE","ATKR","ATMU","ATSG","AUR","AVAV","AVNS","AWI","AWR","AX","AXL",
+    "AZTA","B","BANC","BANR","BBSI","BBW","BCRX","BDC","BFS","BGC","BGS","BHE",
+    "BHLB","BJRI","BKE","BKU","BLBD","BLMN","BLX","BMRC","BNL","BOH","BOX",
+    "BRC","BRT","BSIG","BSRR","BTU","BV","BXC","CABO","CAKE","CAL","CALM",
+    "CALX","CARG","CARS","CASH","CATO","CBL","CBU","CBZ","CCOI","CCRN","CCS",
+    "CDE","CDP","CEIX","CEVA","CFFN","CHCT","CHEF","CHUY","CIO","CIR","CIVB",
+    "CLB","CLW","CMP","CMTL","CNK","CNMD","CNS","CNXC","CODI","COHU","CON",
+    "CONN","COOP","CORE","CORT","COTY","CPF","CPK","CPRX","CRC","CRI","CRK",
+    "CRSR","CSGS","CSR","CSTL","CSWI","CTBI","CTLP","CTOS","CTS","CUBI","CUTR",
+    "CVBF","CVCO","CVI","CVLT","CWAN","CWEN","CWH","CWK","CWST","CWT","CXM",
+    "CXW","DAN","DBI","DCO","DEA","DEI","DEN","DFH","DFIN","DGII","DHC","DIOD",
+    "DJCO","DK","DLX","DNB","DNOW","DOMO","DORM","DRH","DRQ","DV","DXC","DXPE",
+    "EAF","ECG","ECPG","EFC","EGBN","EGY","EIG","ELME","EMBC","ENR","ENSG",
+    "ENTA","ENV","EPAC","EPRT","EQC","ESE","ETD","ETSY","EVH","EVRI","EVTC",
+    "EXLS","EXPI","EXTR","FBNC","FBP","FBRT","FCF","FCFS","FDP","FELE","FFBC",
+    "FFG","FFIC","FFWM","FIBK","FIZZ","FL","FLS","FLWS","FN","FOR","FORM",
+    "FRGE","FRO","FSB","FSCO","FSP","FUL","FULT","FWRD","GBX","GCO","GDEN",
+    "GDOT","GEF","GEO","GES","GFF","GIII","GMS","GNL","GNTY","GO","GOLF","GOR",
+    "GPI","GPMT","GPOR","GRBK","GTY","GVA","HAE","HAFC","HAIN","HBI","HCC",
+    "HCKT","HCSG","HEES","HFFG","HFWA","HGV","HI","HLF","HLIT","HLX","HMN",
+    "HOFT","HOPE","HP","HRMY","HSII","HSTM","HTH","HTLD","HTLF","HUBG","HVT",
+    "HZO","IBP","ICFI","ICHR","IDT","IIIN","IIPR","INDB","INN","INVA","IOSP",
+    "IPAR","IRWD","ITGR","ITRI","JACK","JBI","JBLU","JBSS","JBT","JCI","JOE",
+    "JOUT","JWN","KALU","KAR","KE","KELYA","KFRC","KFS","KFY","KLG","KMT",
+    "KN","KOS","KRG","KRO","KRYS","KSS","KTB","KW","KWR","LAUR","LAW","LBRT",
+    "LCII","LCNB","LEG","LGIH","LGND","LILA","LMAT","LMND","LMNR","LNN",
+    "LNW","LPG","LQDT","LRN","LTC","LXP","LZB","MAC","MATW","MATX","MBC","MBI",
+    "MBIN","MBUU","MC","MCBS","MCRI","MCS","MCW","MCY","MD","MDC","MDP","MDRX",
+    "MEG","MERC","MGEE","METC","MGPI","MGRC","MGY","MHO","MLAB","MLI","MLKN",
+    "MLR","MMI","MMSI","MNRO","MOD","MODG","MODV","MOG-A","MOV","MP","MPW",
+    "MPX","MQ","MRCY","MSEX","MSGE","MSGS","MTH","MTRN","MTUS","MUR","MWA",
+    "MYE","MYGN","MYRG","NABL","NARI","NATL","NBHC","NBR","NEO","NEOG","NESR",
+    "NEU","NGVT","NJR","NMIH","NOG","NOMD","NPK","NPO","NPWR","NSP","NTB",
+    "NTCT","NTGR","NUS","NUVL","NWBI","NWE","NWL","NWN","NX","NXRT","NXT",
+    "NYMT","OCFC","OFG","OGS","OII","OIS","OLPX","OMCL","OMI","ONB","OPCH",
+    "ORA","OSIS","OSTK","OSW","OTTR","OUT","OXM","PACK","PAG","PARR","PATK",
+    "PAYO","PBI","PCRX","PCYO","PDCO","PDM","PEB","PECO","PFBC","PFC","PFS",
+    "PGNY","PHAT","PI","PINC","PIPR","PIRS","PJT","PK","PLAB","PLAY","PLMR",
+    "PLUS","PLXS","PMT","POWI","POWL","PPBI","PRA","PRDO","PRG","PRGS","PRK",
+    "PRLB","PRO","PRTH","PRVA","PSMT","PTCT","PTGX","PUMP","PZZA","QCRH","QNST",
+    "QTRX","RAMP","RBBN","RBC","RC","RCKT","RCM","RCMT","RCUS","RDFN","REPL",
+    "REPX","REVG","REZI","RGNX","RGR","RH","RICK","RILY","RLI","RLJ","RM",
+    "RNST","ROCC","ROG","ROIC","RPAY","RUN","RUSHA","RWT","RXO","RXST","RXT",
+    "RYI","SABR","SAFE","SAFT","SAH","SAM","SANM","SASR","SATS","SBCF","SBGI",
+    "SBH","SBSI","SCHL","SCL","SCSC","SCVL","SDGR","SEAS","SEM","SENEA","SFBS",
+    "SFL","SHAK","SHEN","SHO","SHOO","SI","SIBN","SIGA","SIRI","SITC","SITM",
+    "SJW","SKT","SKYW","SLCA","SLG","SLM","SLP","SLVM","SM","SMP","SMPL","SMTC",
+    "SNCY","SNDR","SNDX","SNEX","SOI","SON","SONO","SPB","SPNE","SPNT","SPOK",
+    "SPR","SPSC","SPT","SPTN","SPWH","SR","SRCE","SRDX","SSTK","STAA","STAR",
+    "STBA","STC","STEL","STER","STGW","STNG","STRA","STRL","STRO","SUM","SUPN",
+    "SVC","SVRA","SWBI","SWI","SWX","SXC","SXI","SYBT","SYRE","TALO","TBBK",
+    "TBI","TCBK","TCMD","TCPC","TCS","TDC","TDS","TDW","TGI","TGTX","THFF",
+    "THR","THRY","THS","TILE","TMP","TNC","TNDM","TPB","TPC","TPH","TR","TRC",
+    "TREE","TRMK","TRN","TRNS","TRST","TRTN","TRUP","TSE","TTGT","TTI","TTMI",
+    "TVTX","TWI","TWNK","TXG","TXMD","UCB","UCBI","UE","UFCS","UFI","UFPI",
+    "UGI","UHT","UIS","UMBF","UNF","UNFI","UNIT","UNTY","UPLD","URBN","USCR",
+    "USNA","USPH","UTL","UTMD","UVE","UVSP","VBTX","VCEL","VCYT","VECO","VERX",
+    "VG","VGR","VICR","VIR","VIRT","VKTX","VPG","VRA","VRDN","VRE","VREX",
+    "VRRM","VRTS","VSAT","VSEC","VSH","VYX","WABC","WAFD","WD","WDFC","WERN",
+    "WGO","WHD","WK","WKC","WKME","WLY","WMC","WNC","WOR","WRBY","WRLD","WS",
+    "WSC","WSFS","WSR","WT","WTS","WWW","XHR","XNCR","XPEL","XPER","YELP","YETI",
+    "YOU","ZD","ZIM","ZIP","ZUO",
+]
+
+# ── STOXX Europe Mid Cap (~150 mid caps EU Bourso-compatibles) ─────────
+STOXX_MID_EU = [
+    # 🇫🇷 France .PA (PEA)
+    "ALMDT.PA","ALTR.PA","ATARI.PA","BIG.PA","BLC.PA","BNB.PA","BNV.PA","BSD.PA",
+    "BVI.PA","CGG.PA","CIV.PA","COX.PA","DSY.PA","ECP.PA","EOS.PA","FII.PA",
+    "FORE.PA","FOUG.PA","HCO.PA","INF.PA","IPH.PA","KORI.PA","LACR.PA","LIN.PA",
+    "LSS.PA","MAA.PA","MERY.PA","NANO.PA","ORP.PA","RBT.PA","RIN.PA","RUI.PA",
+    "SESL.PA","SII.PA","SOG.PA","STF.PA","SY.PA","THEP.PA","UG.PA","VANTI.PA",
+    # 🇩🇪 Allemagne .DE (PEA)
+    "AOX.DE","BIO3.DE","CEC.DE","CWC.DE","DEQ.DE","DRI.DE","DUE.DE","EVO.DE",
+    "G1A.DE","GFT.DE","INH.DE","KCO.DE","KU2.DE","NDA.DE","NOEJ.DE","O2D.DE",
+    "PFV.DE","PSAN.DE","RHK.DE","SANT.DE","SOW.DE","TKMS.DE","TUI1.DE","WAF.DE",
+    # 🇮🇹 Italie .MI (PEA)
+    "ALK.MI","BPE.MI","BMED.MI","BPSO.MI","CEM.MI","CMB.MI","DAL.MI","DLG.MI",
+    "ENV.MI","ERG.MI","FILA.MI","GVS.MI","IG.MI","IGD.MI","IGL.MI","IRE.MI",
+    "MFEA.MI","MFEB.MI","RWAY.MI","SOL.MI","SRS.MI","TES.MI","TGYM.MI","UNIR.MI",
+    # 🇪🇸 Espagne .MC (PEA)
+    "ALM.MC","APAM.MC","APPS.MC","ATRY.MC","CAF.MC","CIE.MC","EBRO.MC","ECR.MC",
+    "EDR.MC","ENC.MC","FAE.MC","GEST.MC","LOG.MC","ORY.MC","PRS.MC","PSG.MC",
+    "TUB.MC","UBS.MC","VID.MC","VIS.MC","ZOT.MC",
+    # 🇳🇱 Pays-Bas .AS (PEA)
+    "ABN.AS","AALB.AS","ACOMO.AS","ARCAD.AS","ASRNL.AS","BAMNB.AS","CTPNV.AS",
+    "FAGR.AS","FUR.AS","NSI.AS","PHARM.AS","SBMO.AS","TKWY.AS","VPK.AS","WHA.AS",
+    # 🇧🇪 Belgique .BR (PEA)
+    "BAR.BR","BPOST.BR","CFEB.BR","DIE.BR","EVS.BR","JEN.BR","LOTB.BR","TESB.BR",
+    # 🇬🇧 UK .L (CTO)
+    "ASHM.L","AVON.L","CAPC.L","CRDA.L","DPLM.L","ECM.L","ENT.L","HSV.L","ICP.L",
+    "JD.L","MNDI.L","SAFE.L","TET.L","WTAN.L",
 ]
 
 # ── NASDAQ 100 hors-SP500 (tech US Bourso-compatible) ─────────────────
@@ -635,20 +736,21 @@ def get_flag(ticker: str) -> str:
 # ── Pills d'indices affichées dans la cover (1 ligne pleine largeur) ─
 # Limité à ~10 pills max pour tenir sur 1 ligne à 1080px. Le reste va dans "+N AUTRES".
 INDEX_PILLS_ALL = [
-    # 🏛️ Bourso-compatible (tri par market cap DESC)
     "SP 500",            # 🇺🇸 ~$50T
-    "NASDAQ 100",        # 🇺🇸 ~$25T (NOUVEAU)
-    "STOXX EUROPE",      # 🇪🇺 ~€14T
-    "SP 400 MID",        # 🇺🇸 ~$3.5T (NOUVEAU)
+    "NASDAQ 100",        # 🇺🇸 ~$25T
+    "STOXX 600",         # 🇪🇺 ~€14T
+    "SP 400 MID",        # 🇺🇸 ~$3.5T
+    "SP 600 SMALL",      # 🇺🇸 ~$1.2T
     "FTSE 100",          # 🇬🇧 ~$2.5T
     "SBF 120",           # 🇫🇷 ~$2T
     "CAC 40",            # 🇫🇷 ~$2T
-    "DAX",               # 🇩🇪 ~€1.9T
+    "DAX 40",            # 🇩🇪 ~€1.9T
     "AEX 25",            # 🇳🇱 ~$1T
     "IBEX 35",           # 🇪🇸 ~$800B
-    "FTSE MIB",          # 🇮🇹 ~$700B
-    "FTSE 250",          # 🇬🇧 ~$500B (NOUVEAU)
-    "MDAX",              # 🇩🇪 ~€430B
+    "FTSE MIB 40",       # 🇮🇹 ~$700B
+    "FTSE 250",          # 🇬🇧 ~$500B
+    "STOXX MID 200",     # 🇪🇺 ~€450B
+    "MDAX 50",           # 🇩🇪 ~€430B
     # 🌍 NON-Bourso (tri par market cap DESC)
     "NIKKEI 225",        # 🇯🇵 ~$5T
     "HANG SENG",         # 🇭🇰 ~$2.5T
@@ -1336,8 +1438,8 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
     suffix   = "_test" if TEST_MODE else ""
 
     # ── Construction des univers ─────────────────────────────────────
-    all_us   = list(dict.fromkeys(SP500 + SP400_MID + NASDAQ100_EXTRA))
-    all_eu   = list(dict.fromkeys(STOXX + SBF120_MID + FTSE250))
+    all_us   = list(dict.fromkeys(SP500 + SP400_MID + SP600_SMALL + NASDAQ100_EXTRA))
+    all_eu   = list(dict.fromkeys(STOXX + SBF120_MID + FTSE250 + STOXX_MID_EU))
     all_de   = list(dict.fromkeys(DAX + MDAX))
     all_intl = list(dict.fromkeys(NIKKEI + TSX60 + ASX50 + HSI))
 
@@ -1378,7 +1480,7 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
         n_total = len(all_us) + len(all_eu) + len(all_de) + len(all_intl)
         log.info("\n📡  Fetch yfinance MODE PROD : %d tickers (US=%d EU=%d DE=%d INTL=%d)",
                  n_total, len(all_us), len(all_eu), len(all_de), len(all_intl))
-        log.info("   ⏱  Estimation : 20-30 min avec %d workers + sleep %ds entre univers",
+        log.info("   ⏱  Estimation : 35-45 min avec %d workers + sleep %ds entre univers",
                  N_WORKERS, SLEEP_BETWEEN_UNI)
 
         t0 = time.time()
