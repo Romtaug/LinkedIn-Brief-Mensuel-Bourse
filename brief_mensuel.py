@@ -2225,7 +2225,7 @@ body {
 .sec-cell-flag { font-size:18px; }
 .sec-cell-info { min-width:0; }
 .sec-cell-name { font-family:'Inter',sans-serif; font-weight:700;
-  font-size:14px; color:var(--text); letter-spacing:-0.2px;
+  font-size:17px; color:var(--text); letter-spacing:-0.3px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
 .sec-cell-tk { color:var(--blue); font-family:'JetBrains Mono';
   font-weight:600; font-size:11px; letter-spacing:0.3px; margin-top:2px; }
@@ -2417,7 +2417,7 @@ def _row_perf_html(rank: int, r: dict) -> str:
     target  = fmt_signed_pct(r.get("target_pct"))
     div     = f"💰 {r['div_pct']:.1f}%".replace(".", ",") if r.get("div_pct", 0) > 0 else ""
     price_s = fmt_price(r.get("price_eur"))
-    name = smart_trunc(cap_name(r.get("name", "")), 28)
+    name = cap_name(r.get("name", ""))
     alt     = "alt" if rank % 2 == 0 else ""
     sec_label, sec_emoji = get_sector_display(r.get("sector_fr", ""))
     return f"""
@@ -2453,7 +2453,7 @@ def _row_conv_html(rank: int, r: dict) -> str:
     price_s = fmt_price(r.get("price_eur"))
     score   = r.get("total_pct")
     score_s = fmt_signed_pct(score)
-    name = smart_trunc(cap_name(r.get("name", "")), 28)
+    name = cap_name(r.get("name", ""))
     alt     = "alt" if rank % 2 == 0 else ""
     sec_label, sec_emoji = get_sector_display(r.get("sector_fr", ""))
     return f"""
@@ -2484,7 +2484,7 @@ def _sec_cell_html(row: dict | None, side: str) -> str:
     div_pct = row.get("div_pct", 0) or 0
     div_str = f" · 💰 {div_pct:.1f}%".replace(".", ",") if div_pct > 0 else ""
     price_s = fmt_price(row.get("price_eur"))
-    name    = smart_trunc(cap_name(row.get("name", "")), 20)
+    name    = cap_name(row.get("name", ""))
     rm      = row.get("reco_mean")
     stars   = reco_stars(rm)
     n_an    = int(row.get("analyst_count", 0) or 0)
