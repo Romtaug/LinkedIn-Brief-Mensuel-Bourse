@@ -2115,7 +2115,7 @@ body {
   background:#050d1a; letter-spacing:0.5px;
 }
 .bar-bot .center { flex:1; text-align:center; color:var(--blue); font-weight:600; }
-.body { padding:85px 50px 70px; height:1350px; }
+.body { padding:72px 50px 58px; height:1350px; }
 .pos { color:var(--green); } .neg { color:var(--red); } .neut { color:var(--text-mid); }
 .tabnum { font-variant-numeric:tabular-nums; }
 
@@ -2211,7 +2211,7 @@ body {
 /* Section secteurs ALIGNÉE - 11 lignes, secteur | PEA | CTO */
 .sec-aligned-row { padding:6px 14px; border-bottom:1px solid var(--grid);
   display:grid; grid-template-columns:140px 1fr 1fr;
-  align-items:center; gap:14px; min-height:84px; }
+  align-items:center; gap:14px; min-height:76px; }
 .sec-aligned-row.hidden { visibility:hidden; }
 .sec-aligned-row.alt { background:var(--bg-row); }
 
@@ -2629,7 +2629,7 @@ def html_sectors(rk: Rankings, snapshot: str, period_fr: str, visible: int) -> s
 
     body = f"""<div class="body">
   <div class="dual-title">TOP <span class="or">POTENTIELS PAR SECTEUR</span></div>
-  <div class="dual-sub">Meilleur ticker PEA vs meilleur ticker CTO par secteur GICS  ·  Score = potentiel cible + dividende  ·  Tri par max(PEA,CTO)</div>
+  <div class="dual-sub">Meilleur ticker PEA vs CTO par secteur  ·  Score = potentiel cible + dividende  ·  Tri par max(PEA,CTO)</div>
   {headers_html}
   {rows}
 </div>"""
