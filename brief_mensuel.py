@@ -1442,6 +1442,22 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
     all_eu   = list(dict.fromkeys(STOXX + SBF120_MID + FTSE250 + STOXX_MID_EU))
     all_de   = list(dict.fromkeys(DAX + MDAX))
     all_intl = list(dict.fromkeys(NIKKEI + TSX60 + ASX50 + HSI))
+    
+    # ⚠️ DÉDUPLICATION GLOBALE : un ticker peut être dans 2 listes (ex: TUI1.DE dans MDAX + STOXX_MID_EU)
+    # On retire chaque ticker des listes suivantes pour éviter double-fetch + doublons dans le DataFrame
+    _seen: set[str] = set()
+    def _dedup(lst: list[str]) -> list[str]:
+        out = []
+        for t in lst:
+            if t not in _seen:
+                _seen.add(t)
+                out.append(t)
+        return out
+    
+    all_us   = _dedup(all_us)
+    all_eu   = _dedup(all_eu)
+    all_de   = _dedup(all_de)
+    all_intl = _dedup(all_intl)
 
     # ── 1. Fetch benchmarks AVANT tout (anti rate-limit) ─────────────
     log.info("\n📊  Fetch benchmarks (S&P 500, CAC 40, STOXX 600) - EN PREMIER (anti rate-limit)…")
@@ -1742,10 +1758,11 @@ def _row_pot_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
     elig    = "✅PEA" if r.get("pea") else "🌍CTO"
     score = fmt_signed_pct(r.get("total_pct"))
     stars   = reco_stars(r.get("reco_mean"))
+    stars_block = f"{stars} · " if stars != "-" else ""
     price_s = fmt_price(r.get("price_eur"))
     safe_t  = safe_ticker(r["ticker"])
     links   = _build_links(r, links_mode)
-    return f"{medal} {name} 🎯 {score} {stars} · 💵 {price_s} · {flag} {safe_t} {elig}{links}"
+    return f"{medal} {name} 🎯 {score} · {stars_block}💵 {price_s} · {flag} {safe_t} {elig}{links}"
 
 
 def _row_sec_post(r: dict, with_2_links: bool = True) -> str:
@@ -2171,9 +2188,9 @@ body {
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
 .sec-cell-tk { color:var(--blue); font-family:'JetBrains Mono';
   font-weight:600; font-size:11px; letter-spacing:0.3px; margin-top:2px; }
-.sec-cell-detail { color:var(--text-mid); font-size:10px;
-  letter-spacing:0.3px; margin-top:3px; font-family:'JetBrains Mono';
-  font-variant-numeric:tabular-nums; }
+.sec-cell-stars { font-family:'JetBrains Mono'; font-size:11px;
+  letter-spacing:0.8px; margin-top:3px; line-height:1.2; }
+.sec-cell-stars .dim { color:var(--dim); font-size:10px; margin-left:2px; }
 .sec-cell-score { font-family:'Inter',sans-serif; font-weight:800;
   font-size:18px; letter-spacing:-0.5px; text-align:right; }
 .sec-cell-empty { color:var(--dim); font-size:11px; font-style:italic;
@@ -2403,7 +2420,7 @@ def _row_conv_html(rank: int, r: dict) -> str:
     <div class="ticker">{flag}&nbsp;{r["ticker"]} · {sec_emoji} {html_lib.escape(sec_label)}</div>
     <div class="meta">
       <span class="stars {reco_color_class(rm)}">{stars}</span>
-      <span><span class="k">{html_lib.escape(reco_lb)}</span> ({n_an})</span>
+      <span><span class="k">{n_an}</span> analystes</span>
     </div>
   </div>
   <div class="row-num">
@@ -2414,13 +2431,6 @@ def _row_conv_html(rank: int, r: dict) -> str:
 </div>"""
 
 def _sec_cell_html(row: dict | None, side: str) -> str:
-    """
-    HTML d'une cellule PEA ou CTO dans la grille alignée.
-    
-    Args:
-        row : dict du ticker (None si pas de ticker pour ce secteur côté concerné)
-        side : "pea" ou "cto"
-    """
     if row is None:
         return f'<div class="sec-cell empty"><div class="sec-cell-empty">-</div></div>'
 
@@ -2432,11 +2442,17 @@ def _sec_cell_html(row: dict | None, side: str) -> str:
     div_str = f" · 💰 {div_pct:.1f}%".replace(".", ",") if div_pct > 0 else ""
     price_s = fmt_price(row.get("price_eur"))
     name    = smart_trunc(cap_name(row.get("name", "")), 20)
+    rm      = row.get("reco_mean")
+    stars   = reco_stars(rm)
+    n_an    = int(row.get("analyst_count", 0) or 0)
+    stars_line = (f'<div class="sec-cell-stars {reco_color_class(rm)}">{stars} '
+                  f'<span class="dim">({n_an})</span></div>') if stars != "-" else ""
     return f"""<div class="sec-cell has-{side}">
   <div class="sec-cell-flag">{flag}</div>
   <div class="sec-cell-info">
     <div class="sec-cell-name">{html_lib.escape(name)}</div>
     <div class="sec-cell-tk">{row["ticker"]}</div>
+    {stars_line}
     <div class="sec-cell-detail">💵 {price_s} · 🎯 {target}{div_str}</div>
   </div>
   <div class="sec-cell-score tabnum {score_c}">{score}</div>
