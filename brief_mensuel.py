@@ -2232,8 +2232,11 @@ body {
 .sec-cell-stars { font-family:'JetBrains Mono'; font-size:11px;
   letter-spacing:0.8px; margin-top:3px; line-height:1.2; }
 .sec-cell-stars .dim { color:var(--dim); font-size:10px; margin-left:2px; }
+.sec-cell-detail { font-family:'JetBrains Mono'; font-size:11px;
+  color:var(--dim); letter-spacing:0.3px; margin-top:3px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.2; }
 .sec-cell-score { font-family:'Inter',sans-serif; font-weight:800;
-  font-size:18px; letter-spacing:-0.5px; text-align:right; }
+  font-size:26px; letter-spacing:-0.5px; text-align:right; }
 .sec-cell-empty { color:var(--dim); font-size:11px; font-style:italic;
   text-align:center; grid-column:1/-1; }
 
