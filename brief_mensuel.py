@@ -2249,7 +2249,7 @@ body {
 
 /* En-tête section secteurs : labels PEA / CTO sur fond bleu */
 .sec-headers { display:grid; grid-template-columns:140px 1fr 1fr;
-  gap:14px; padding:8px 14px; margin-bottom:6px;
+  gap:14px; padding:8px 14px; margin-bottom:14px;
   background:var(--bg-pan); border:1px solid var(--grid); }
 .sec-headers .h-label { color:var(--text-mid); font-size:11px;
   font-weight:700; letter-spacing:1.5px; text-transform:uppercase; }
