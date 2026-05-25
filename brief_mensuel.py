@@ -86,7 +86,7 @@ def _env_bool(key: str, default: bool = False) -> bool:
 
 # ── Modes & quantités ────────────────────────────────────────────────
 TEST_MODE          = _env_bool("TEST_MODE", default=True)
-N_TICKERS_TEST     = 30            # ← TOTAL en mode test (mélangé toutes zones)
+N_TICKERS_TEST     = int(os.getenv("N_TICKERS_TEST", "50"))  # ← TOTAL en mode test (mélangé toutes zones)
 N_TOP              = 4             # Top 5 Perf + Top 5 Pred (post)
 N_TOP_VIDEO        = 10            # Top 10 dans la vidéo
 N_SECTOR_PER_COL   = 10            # (Legacy) 10 secteurs en PEA + 10 en CTO
