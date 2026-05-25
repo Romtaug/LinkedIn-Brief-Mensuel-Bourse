@@ -759,7 +759,7 @@ INDEX_PILLS_ALL = [
     "ASE",               # 🇬🇷 ~$100B
     "WIG 20",            # 🇵🇱 ~$100B
 ]
-INDEX_PILLS_VISIBLE_MAX = 10
+INDEX_PILLS_VISIBLE_MAX = 9
 
 
 # ── Benchmarks (3 indices fetched en PREMIER pour éviter rate-limit) ─
