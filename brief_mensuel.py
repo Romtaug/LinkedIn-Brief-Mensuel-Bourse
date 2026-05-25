@@ -1789,7 +1789,7 @@ def _row_perf_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
     flag    = get_flag(r["ticker"])
     medal   = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}.get(rank, f"{rank:02d}")
     name    = smart_trunc(cap_name(r.get("name", "")), 28)
-    elig    = "✅PEA" if r.get("pea") else "🌍CTO"
+    elig    = "✅ PEA" if r.get("pea") else "🌍 CTO"
     val = fmt_signed_pct(r.get("perf_1m"))
     price_s = fmt_price(r.get("price_eur"))
     safe_t  = safe_ticker(r["ticker"])
@@ -1802,7 +1802,7 @@ def _row_pot_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
     flag    = get_flag(r["ticker"])
     medal   = {1: "🥇", 2: "🥈", 3: "🥉", 4: "4️⃣", 5: "5️⃣"}.get(rank, f"{rank:02d}")
     name    = smart_trunc(cap_name(r.get("name", "")), 24)
-    elig    = "✅PEA" if r.get("pea") else "🌍CTO"
+    elig    = "✅ PEA" if r.get("pea") else "🌍 CTO"
     score = fmt_signed_pct(r.get("total_pct"))
     stars   = reco_stars(r.get("reco_mean"))
     stars_block = f"{stars} · " if stars != "-" else ""
