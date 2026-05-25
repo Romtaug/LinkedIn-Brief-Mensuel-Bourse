@@ -1892,9 +1892,9 @@ def _block_sec_aligned_post(sector_data: dict, with_links: bool = True) -> str:
     score   = fmt_signed_pct(best.get("total_pct"))
     price_s = fmt_price(best.get("price_eur"))
     safe_t  = safe_ticker(best["ticker"])
-    elig    = "✅PEA" if best.get("pea") else "🌍CTO"
+    elig    = "✅ PEA" if best.get("pea") else "🌍 CTO"
     
-    line1 = f"{flag} {name} 🎯 {score} · 💵 {price_s} · {safe_t} {elig}"
+    line1 = f"{name} 🎯 {score} · 💵 {price_s} · {flag} {safe_t} {elig}"
     
     if not with_links:
         return f"{emoji} {sec_label}\n{line1}"
@@ -2209,9 +2209,9 @@ body {
 .reco-vsell { color:var(--red); } .reco-na { color:var(--dim); }
 
 /* Section secteurs ALIGNÉE - 11 lignes, secteur | PEA | CTO */
-.sec-aligned-row { padding:6px 14px; border-bottom:1px solid var(--grid);
+.sec-aligned-row { padding:4px 14px; border-bottom:1px solid var(--grid);
   display:grid; grid-template-columns:140px 1fr 1fr;
-  align-items:center; gap:14px; min-height:76px; }
+  align-items:center; gap:14px; min-height:66px; }
 .sec-aligned-row.hidden { visibility:hidden; }
 .sec-aligned-row.alt { background:var(--bg-row); }
 
