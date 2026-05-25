@@ -33,6 +33,19 @@ on:
         options:
           - "false"
           - "true"
+      test_mode:
+        description: "Mode TEST (fetch limité au lieu de l'univers complet)"
+        type: choice
+        required: true
+        default: "false"
+        options:
+          - "false"
+          - "true"
+      n_tickers_test:
+        description: "Nombre de tickers en mode TEST (défaut 50)"
+        type: string
+        required: false
+        default: "50"
 
 jobs:
   brief-prod:
@@ -77,9 +90,10 @@ jobs:
           python -m playwright install chromium
           python -m playwright install-deps chromium
 
-      - name: Run brief (FULL UNIVERSE)
+      - name: Run brief
         env:
-          TEST_MODE: "false"
+          TEST_MODE: ${{ github.event.inputs.test_mode || 'false' }}
+          N_TICKERS_TEST: ${{ github.event.inputs.n_tickers_test || '50' }}
           FORCE_RUN: ${{ github.event.inputs.force_run || 'false' }}
           SEND_TO_WEBHOOK: "true"
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
