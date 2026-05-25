@@ -785,15 +785,16 @@ def get_flag(ticker: str) -> str:
 # ── Pills d'indices affichées dans la cover (1 ligne pleine largeur) ─
 # Limité à ~10 pills max pour tenir sur 1 ligne à 1080px. Le reste va dans "+N AUTRES".
 INDEX_PILLS_ALL = [
+    # ✅ Bourso-compatibles (tri par market cap DESC)
     "SP 500",            # 🇺🇸 ~$50T
     "NASDAQ 100",        # 🇺🇸 ~$25T
     "STOXX 600",         # 🇪🇺 ~€14T
     "SP 400 MID",        # 🇺🇸 ~$3.5T
-    "SP 600 SMALL",      # 🇺🇸 ~$1.2T
     "FTSE 100",          # 🇬🇧 ~$2.5T
     "SBF 120",           # 🇫🇷 ~$2T
     "CAC 40",            # 🇫🇷 ~$2T
     "DAX 40",            # 🇩🇪 ~€1.9T
+    "SP 600 SMALL",      # 🇺🇸 ~$1.2T
     "AEX 25",            # 🇳🇱 ~$1T
     "IBEX 35",           # 🇪🇸 ~$800B
     "FTSE MIB 40",       # 🇮🇹 ~$700B
@@ -809,7 +810,6 @@ INDEX_PILLS_ALL = [
     "WIG 20",            # 🇵🇱 ~$100B
 ]
 INDEX_PILLS_VISIBLE_MAX = 9
-
 
 # ── Benchmarks (3 indices fetched en PREMIER pour éviter rate-limit) ─
 BENCHMARKS = [
