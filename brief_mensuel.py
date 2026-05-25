@@ -520,6 +520,15 @@ SDAX = [
     "VOS.DE","WAC.DE","WAF.DE","WCH.DE","ZAL.DE",
 ]
 
+# ── TecDAX 30 (Allemagne tech mid caps PEA) ──────────────────────────
+TECDAX = [
+    "1U1.DE","AIXA.DE","BC8.DE","CCC3.DE","COK.DE","DRI.DE","EVT.DE",
+    "FNTN.DE","FRA.DE","HHFA.DE","IFX.DE","INH.DE","JEN.DE","KRN.DE",
+    "M5Z.DE","MOR.DE","NA9.DE","NEM.DE","NEX.DE","P7C.DE","PNE3.DE",
+    "QIA.DE","S92.DE","SAP.DE","SHL.DE","SOW.DE","TEG.DE","TKMS.DE",
+    "UTDI.DE","WAF.DE","WCH.DE",
+]
+
 # ── SBF 120 Mid (France hors CAC 40) ─────────────────────────────────
 SBF120_MID = [
     "ADP.PA","AF.PA","ATE.PA","AMUN.PA","ARG.PA","ATO.PA","AYV.PA",
@@ -1480,7 +1489,7 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
     # ── Construction des univers ─────────────────────────────────────
     all_us   = list(dict.fromkeys(SP500 + SP400_MID + SP600_SMALL + NASDAQ100_EXTRA))
     all_eu   = list(dict.fromkeys(STOXX + SBF120_MID + FTSE250 + STOXX_MID_EU + CAC_MID_60 + CAC_SMALL))
-    all_de   = list(dict.fromkeys(DAX + MDAX + SDAX))
+    all_de   = list(dict.fromkeys(DAX + MDAX + SDAX + TECDAX))
     all_intl = list(dict.fromkeys(NIKKEI + TSX60 + ASX50 + HSI))
     
     # ⚠️ DÉDUPLICATION GLOBALE : un ticker peut être dans 2 listes (ex: TUI1.DE dans MDAX + STOXX_MID_EU)
