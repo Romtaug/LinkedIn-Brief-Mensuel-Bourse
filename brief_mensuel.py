@@ -507,7 +507,17 @@ MDAX = [
     "PUM.DE","FRA.DE","AG1.DE","SDF.DE","BC8.DE","FPE3.DE","UTDI.DE","8TRA.DE",
     "TKMS.DE","AMV0.DE","AT1.DE","DWS.DE","WCH.DE","JEN.DE","KRN.DE","DEZ.DE",
     "SHA0.DE","BOSS.DE","HLE.DE","LXS.DE","SZG.DE","IOS.DE","JUN3.DE","RRTL.DE",
-    "SAX.DE","RDC.DE",
+"SAX.DE","RDC.DE",
+]
+
+# ── SDAX (Allemagne small caps PEA) ──────────────────────────────────
+SDAX = [
+    "ADV.DE","BVB.DE","CAP.DE","COK.DE","DEX.DE","DRW3.DE","ELG.DE","ENVITEC.DE",
+    "GFJ.DE","GIL.DE","GMM.DE","GYC.DE","HLAG.DE","HHFA.DE","INH.DE","IVU.DE",
+    "KCO.DE","KU2.DE","KWS.DE","LEO.DE","M5Z.DE","MEO.DE","MOR.DE","MUM.DE",
+    "NA9.DE","NWO.DE","PFV.DE","PNE3.DE","PSAN.DE","S92.DE","SAX.DE","SFQ.DE",
+    "SGL.DE","SIX2.DE","SOW.DE","SPR.DE","STM.DE","TTK.DE","VAR1.DE","VBK.DE",
+    "VOS.DE","WAC.DE","WAF.DE","WCH.DE","ZAL.DE",
 ]
 
 # ── SBF 120 Mid (France hors CAC 40) ─────────────────────────────────
@@ -524,6 +534,36 @@ SBF120_MID = [
     "VIRP.PA","VIRI.PA","VU.PA","MF.PA","WLN.PA",
 ]
 
+# ── CAC Mid 60 + Small caps FR qualité (PEA + Bourso-compatibles) ────
+# Ajout pour rééquilibrer le ratio PEA vs CTO (était 262/884)
+CAC_MID_60 = [
+    # CAC Mid 60 (mid caps Euronext Paris)
+    "AKW.PA","ALBLD.PA","ALD.PA","ALMDT.PA","ALTA.PA","BNG.PA","BOI.PA","BON.PA",
+    "BVI.PA","CAFO.PA","COFA.PA","COV.PA","CRTO.PA","DERI.PA","DIM.PA","DG.PA",
+    "ELIOR.PA","ENX.PA","ERA.PA","EXE.PA","EXN.PA","FII.PA","FNAC.PA","FORE.PA",
+    "GTT.PA","HCO.PA","ICAD.PA","INF.PA","IPS.PA","IPN.PA","IPH.PA","JCQ.PA",
+    "KOF.PA","LACR.PA","LI.PA","LISI.PA","LR.PA","MAU.PA","MAA.PA","MMB.PA",
+    "MERY.PA","MF.PA","MMT.PA","NANO.PA","NEOEN.PA","NXI.PA","OPM.PA","ORP.PA",
+    "PLNW.PA","RCO.PA","RUI.PA","RXL.PA","SCR.PA","SESL.PA","SK.PA","SOI.PA",
+    "SOP.PA","SOMA.PA","SPIE.PA","TE.PA","TFI.PA","UBI.PA","VCT.PA","VIRI.PA",
+    "VIRP.PA","VK.PA","VLA.PA","VRLA.PA","VTSC.PA","VU.PA","WAVE.PA","WLN.PA",
+    # Small caps FR qualité (post CAC Mid)
+    "ABCA.PA","BEN.PA","BB.PA","BIM.PA","CBE.PA","CRI.PA","DBG.PA","DBV.PA",
+    "ELIS.PA","EMEIS.PA","ES.PA","FGR.PA","FR.PA","GFC.PA","GET.PA","GUIL.PA",
+    "IDL.PA","ITP.PA","MEDCL.PA","NEX.PA","PLX.PA","SECH.PA","SESG.PA","SW.PA",
+    "TRI.PA","NACON.PA","RF.PA","DEC.PA","TIPI.PA",
+]
+
+# ── CAC Small (small caps FR PEA Bourso-compatibles) ─────────────────
+CAC_SMALL = [
+    "ALAGR.PA","ALATA.PA","ALCJ.PA","ALMER.PA","ALORA.PA","ALTER.PA","BLEE.PA",
+    "BUR.PA","CDA.PA","CGM.PA","CHSR.PA","COFA.PA","DLTA.PA","ENGI.PA","ESKER.PA",
+    "FNAC.PA","GTT.PA","HCO.PA","INF.PA","JCQ.PA","LACR.PA","LOCAL.PA","MAA.PA",
+    "MMB.PA","MMT.PA","NANO.PA","ORP.PA","PIG.PA","PLNW.PA","SOMA.PA","TIPI.PA",
+    "TOUP.PA","TRI.PA","VANTI.PA","VIRP.PA","VTSC.PA","WAVE.PA","XFAB.PA",
+]
+
+# ── STOXX Europe 600 ventilé par pays (PEA + UK FTSE 100 + Suisse + Irlande) ─
 # ── STOXX Europe 600 ventilé par pays (PEA + UK FTSE 100 + Suisse + Irlande) ─
 _STOXX_NATIONAL = (
     # CAC 40 - France .PA (PEA)
@@ -1439,8 +1479,8 @@ def run_data_pipeline() -> tuple[pd.DataFrame, list[dict], str, str, str]:
 
     # ── Construction des univers ─────────────────────────────────────
     all_us   = list(dict.fromkeys(SP500 + SP400_MID + SP600_SMALL + NASDAQ100_EXTRA))
-    all_eu   = list(dict.fromkeys(STOXX + SBF120_MID + FTSE250 + STOXX_MID_EU))
-    all_de   = list(dict.fromkeys(DAX + MDAX))
+    all_eu   = list(dict.fromkeys(STOXX + SBF120_MID + FTSE250 + STOXX_MID_EU + CAC_MID_60 + CAC_SMALL))
+    all_de   = list(dict.fromkeys(DAX + MDAX + SDAX))
     all_intl = list(dict.fromkeys(NIKKEI + TSX60 + ASX50 + HSI))
     
     # ⚠️ DÉDUPLICATION GLOBALE : un ticker peut être dans 2 listes (ex: TUI1.DE dans MDAX + STOXX_MID_EU)
@@ -2145,8 +2185,9 @@ body {
 .row-main .ticker { color:var(--blue); font-family:'JetBrains Mono';
   font-weight:600; font-size:13px; margin-top:3px; letter-spacing:0.3px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.row-main .meta { display:flex; gap:14px; margin-top:4px;
-  font-size:13px; color:var(--text-mid); letter-spacing:0.3px; }
+.row-main .meta { display:flex; gap:12px; margin-top:4px;
+  font-size:13px; color:var(--text-mid); letter-spacing:0.3px;
+  flex-wrap:nowrap; white-space:nowrap; overflow:hidden; }
 .row-main .meta .k { color:var(--dim); margin-right:3px; }
 .row-num { text-align:right; }
 .row-num .big { font-family:'Inter',sans-serif; font-weight:800;
@@ -2383,9 +2424,9 @@ def _row_perf_html(rank: int, r: dict) -> str:
     <div class="name">{html_lib.escape(name)}</div>
     <div class="ticker">{flag}&nbsp;{r["ticker"]} · {sec_emoji} {html_lib.escape(sec_label)}</div>
     <div class="meta">
-      <span><span class="k">COURS</span><span class="tabnum">{price_s}</span></span>
-      <span><span class="k">CIBLE</span><span class="tabnum">{target}</span></span>
-      {f'<span>{div}</span>' if div else ''}
+      <span class="tabnum">💵 {price_s}</span>
+      <span class="tabnum">🎯 {target}</span>
+      {f'<span class="tabnum">{div}</span>' if div else ''}
     </div>
   </div>
   <div class="row-num">
@@ -2419,8 +2460,7 @@ def _row_conv_html(rank: int, r: dict) -> str:
     <div class="name">{html_lib.escape(name)}</div>
     <div class="ticker">{flag}&nbsp;{r["ticker"]} · {sec_emoji} {html_lib.escape(sec_label)}</div>
     <div class="meta">
-      <span class="stars {reco_color_class(rm)}">{stars}</span>
-      <span><span class="k">{n_an}</span> analystes</span>
+      <span class="stars {reco_color_class(rm)}">{stars} ({n_an})</span>
     </div>
   </div>
   <div class="row-num">
