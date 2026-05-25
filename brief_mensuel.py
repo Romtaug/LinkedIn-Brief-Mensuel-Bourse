@@ -1640,11 +1640,9 @@ class Rankings:
         self.top_perf_cto = (self.df_cto.dropna(subset=["perf_1m"])
                              .sort_values("perf_1m", ascending=False).head(N_TOP_VIDEO))
 
-        _pea_conv = self.df_pea.dropna(subset=["reco_mean"])
-        _cto_conv = self.df_cto.dropna(subset=["reco_mean"])
-        self.top_conv_pea = (_pea_conv[_pea_conv["total_pct"] > 0]
+        self.top_conv_pea = (self.df_pea[self.df_pea["total_pct"] > 0]
                              .sort_values("total_pct", ascending=False).head(N_TOP_VIDEO))
-        self.top_conv_cto = (_cto_conv[_cto_conv["total_pct"] > 0]
+        self.top_conv_cto = (self.df_cto[self.df_cto["total_pct"] > 0]
                              .sort_values("total_pct", ascending=False).head(N_TOP_VIDEO))
 
         # ── Sectors PEA / CTO (1 par secteur, top N_SECTOR_PER_COL) ──
@@ -2463,7 +2461,7 @@ def _row_conv_html(rank: int, r: dict) -> str:
     <div class="name">{html_lib.escape(name)}</div>
     <div class="ticker">{flag}&nbsp;{r["ticker"]} · {sec_emoji} {html_lib.escape(sec_label)}</div>
     <div class="meta">
-      <span class="stars {reco_color_class(rm)}">{stars} ({n_an})</span>
+      {f'<span class="stars {reco_color_class(rm)}">{stars} ({n_an})</span>' if stars != "-" else ''}
     </div>
   </div>
   <div class="row-num">
