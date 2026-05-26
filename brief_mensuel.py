@@ -1794,7 +1794,7 @@ def _row_perf_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
     price_s = fmt_price(r.get("price_eur"))
     safe_t  = safe_ticker(r["ticker"])
     links   = _build_links(r, links_mode)
-    return f"{medal} {name} 📈 {val} · 💵 {price_s} · {flag} {safe_t} {elig}{links}"
+    return f"{medal} {name} 📈 {val} · 💶 {price_s} · {flag} {safe_t} {elig}{links}"
 
 
 def _row_pot_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
@@ -1809,7 +1809,7 @@ def _row_pot_post(r: dict, rank: int, links_mode: str = "br_yf") -> str:
     price_s = fmt_price(r.get("price_eur"))
     safe_t  = safe_ticker(r["ticker"])
     links   = _build_links(r, links_mode)
-    return f"{medal} {name} 🎯 {score} · {stars_block}💵 {price_s} · {flag} {safe_t} {elig}{links}"
+    return f"{medal} {name} 🎯 {score} · {stars_block}💶 {price_s} · {flag} {safe_t} {elig}{links}"
 
 
 def _row_sec_post(r: dict, with_2_links: bool = True) -> str:
@@ -1894,7 +1894,7 @@ def _block_sec_aligned_post(sector_data: dict, with_links: bool = True) -> str:
     safe_t  = safe_ticker(best["ticker"])
     elig    = "✅ PEA" if best.get("pea") else "🌍 CTO"
     
-    line1 = f"{name} 🎯 {score} · 💵 {price_s} · {flag} {safe_t} {elig}"
+    line1 = f"{name} 🎯 {score} · 💶 {price_s} · {flag} {safe_t} {elig}"
     
     if not with_links:
         return f"{emoji} {sec_label}\n{line1}"
@@ -2434,7 +2434,7 @@ def _row_perf_html(rank: int, r: dict) -> str:
     <div class="name">{html_lib.escape(name)}</div>
     <div class="ticker">{flag}&nbsp;{r["ticker"]} · {sec_emoji} {html_lib.escape(sec_label)}</div>
     <div class="meta">
-      <span class="tabnum">💵 {price_s}</span>
+      <span class="tabnum">💶 {price_s}</span>
       <span class="tabnum">🎯 {target}</span>
       {f'<span class="tabnum">{div}</span>' if div else ''}
     </div>
@@ -2476,7 +2476,7 @@ def _row_conv_html(rank: int, r: dict) -> str:
   <div class="row-num">
     <div class="big tabnum {perf_class(score)}">{score_s}</div>
     <div class="small">POTENTIEL TOTAL</div>
-    <div class="small-2">💵 {price_s} · 🎯 {target}{div_str}</div>
+    <div class="small-2">💶 {price_s} · 🎯 {target}{div_str}</div>
   </div>
 </div>"""
 
@@ -2503,7 +2503,7 @@ def _sec_cell_html(row: dict | None, side: str) -> str:
     <div class="sec-cell-name">{html_lib.escape(name)}</div>
     <div class="sec-cell-tk">{row["ticker"]}</div>
     {stars_line}
-    <div class="sec-cell-detail">💵 {price_s} · 🎯 {target}{div_str}</div>
+    <div class="sec-cell-detail">💶 {price_s} · 🎯 {target}{div_str}</div>
   </div>
   <div class="sec-cell-score tabnum {score_c}">{score}</div>
 </div>"""
