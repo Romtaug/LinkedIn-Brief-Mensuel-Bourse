@@ -1,0 +1,532 @@
+{
+    "name": "Integration Webhooks",
+    "flow": [
+        {
+            "id": 1,
+            "module": "gateway:CustomWebHook",
+            "version": 1,
+            "parameters": {
+                "hook": 4107393,
+                "maxResults": 1
+            },
+            "mapper": {},
+            "metadata": {
+                "designer": {
+                    "x": -27,
+                    "y": -3
+                },
+                "restore": {
+                    "parameters": {
+                        "hook": {
+                            "data": {
+                                "editable": "true"
+                            },
+                            "label": "LinkedIn Carousel"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "hook",
+                        "type": "hook:gateway-webhook",
+                        "label": "Webhook",
+                        "required": true
+                    },
+                    {
+                        "name": "maxResults",
+                        "type": "number",
+                        "label": "Maximum number of results"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 19,
+            "module": "linkedin:createVideoPost",
+            "version": 2,
+            "parameters": {
+                "__IMTCONN__": 10073176
+            },
+            "mapper": {
+                "title": "{{1.video_title}}",
+                "video": "{{toBinary(1.video_base64; \"base64\")}}",
+                "method": "upload",
+                "content": "{{1.post_text}}",
+                "videoName": "{{1.filename}}",
+                "visibility": "PUBLIC",
+                "feedDistribution": "MAIN_FEED",
+                "isReshareDisabledByAuthor": false
+            },
+            "metadata": {
+                "designer": {
+                    "x": -9,
+                    "y": -318
+                },
+                "restore": {
+                    "expect": {
+                        "method": {
+                            "label": "Upload by file"
+                        },
+                        "visibility": {
+                            "mode": "chose",
+                            "label": "Anyone"
+                        },
+                        "feedDistribution": {
+                            "mode": "chose",
+                            "label": "Main feed"
+                        },
+                        "isReshareDisabledByAuthor": {
+                            "mode": "chose"
+                        }
+                    },
+                    "parameters": {
+                        "__IMTCONN__": {
+                            "data": {
+                                "scoped": "true",
+                                "connection": "linkedin2"
+                            },
+                            "label": "My LinkedIn connection (Romain Taugourdeau)"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "__IMTCONN__",
+                        "type": "account:linkedin2,linkedin-openid",
+                        "label": "Connection",
+                        "required": true
+                    }
+                ],
+                "expect": [
+                    {
+                        "name": "method",
+                        "type": "select",
+                        "label": "Choose Upload Method",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "upload",
+                                "link"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "title",
+                        "type": "text",
+                        "label": "Title"
+                    },
+                    {
+                        "name": "content",
+                        "type": "text",
+                        "label": "Content",
+                        "required": true
+                    },
+                    {
+                        "name": "visibility",
+                        "type": "select",
+                        "label": "Visibility",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "PUBLIC",
+                                "CONNECTIONS",
+                                "LOGGED_IN"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "feedDistribution",
+                        "type": "select",
+                        "label": "Feed Distribution",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "MAIN_FEED",
+                                "NONE"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "isReshareDisabledByAuthor",
+                        "type": "boolean",
+                        "label": "Is Reshare Disabled",
+                        "required": true
+                    },
+                    {
+                        "name": "videoName",
+                        "type": "text",
+                        "label": "File Name",
+                        "required": true
+                    },
+                    {
+                        "name": "video",
+                        "type": "buffer",
+                        "label": "Data",
+                        "required": true
+                    },
+                    {
+                        "name": "method",
+                        "type": "select",
+                        "label": "Choose Upload Method",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "upload",
+                                "link"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "title",
+                        "type": "text",
+                        "label": "Title"
+                    },
+                    {
+                        "name": "content",
+                        "type": "text",
+                        "label": "Content",
+                        "required": true
+                    },
+                    {
+                        "name": "visibility",
+                        "type": "select",
+                        "label": "Visibility",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "PUBLIC",
+                                "CONNECTIONS",
+                                "LOGGED_IN"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "feedDistribution",
+                        "type": "select",
+                        "label": "Feed Distribution",
+                        "required": true,
+                        "validate": {
+                            "enum": [
+                                "MAIN_FEED",
+                                "NONE"
+                            ]
+                        }
+                    },
+                    {
+                        "name": "isReshareDisabledByAuthor",
+                        "type": "boolean",
+                        "label": "Is Reshare Disabled",
+                        "required": true
+                    },
+                    {
+                        "name": "videoName",
+                        "type": "text",
+                        "label": "File Name",
+                        "required": true
+                    },
+                    {
+                        "name": "video",
+                        "type": "buffer",
+                        "label": "Data",
+                        "required": true
+                    }
+                ]
+            }
+        }
+    ],
+    "metadata": {
+        "instant": true,
+        "version": 1,
+        "scenario": {
+            "roundtrips": 1,
+            "maxErrors": 3,
+            "autoCommit": true,
+            "autoCommitTriggerLast": true,
+            "sequential": false,
+            "slots": null,
+            "confidential": false,
+            "dataloss": false,
+            "dlq": false,
+            "freshVariables": false
+        },
+        "designer": {
+            "orphans": [
+                [
+                    {
+                        "id": 15,
+                        "module": "http:DownloadFile",
+                        "version": 4,
+                        "parameters": {
+                            "authenticationType": "noAuth"
+                        },
+                        "mapper": {
+                            "url": "{{1.video_url}}",
+                            "shareCookies": false,
+                            "stopOnHttpError": true
+                        },
+                        "metadata": {
+                            "designer": {
+                                "x": 257,
+                                "y": -25,
+                                "messages": [
+                                    {
+                                        "category": "reference",
+                                        "severity": "error",
+                                        "message": "'HTTP - Download a file' [module ID 15] references inaccessible module 'Webhooks - Custom webhook' [module ID 1]."
+                                    },
+                                    {
+                                        "category": "link",
+                                        "severity": "warning",
+                                        "message": "This module is not connected to the flow. This module and everything after it will be skipped during execution. <autoconnect>Link it to your scenario to include them.</autoconnect>"
+                                    }
+                                ]
+                            },
+                            "restore": {
+                                "expect": {
+                                    "headers": {
+                                        "mode": "chose"
+                                    },
+                                    "shareCookies": {
+                                        "mode": "chose"
+                                    },
+                                    "queryParameters": {
+                                        "mode": "chose"
+                                    },
+                                    "stopOnHttpError": {
+                                        "mode": "chose"
+                                    }
+                                },
+                                "parameters": {
+                                    "authenticationType": {
+                                        "label": "No authenticationUse when no credentials are required for the request."
+                                    }
+                                }
+                            },
+                            "parameters": [
+                                {
+                                    "name": "authenticationType",
+                                    "type": "select",
+                                    "label": "Authentication type",
+                                    "required": true,
+                                    "validate": {
+                                        "enum": [
+                                            "noAuth",
+                                            "apiKey",
+                                            "basicAuth",
+                                            "oAuth"
+                                        ]
+                                    }
+                                }
+                            ],
+                            "expect": [
+                                {
+                                    "name": "url",
+                                    "type": "url",
+                                    "label": "URL",
+                                    "required": true
+                                },
+                                {
+                                    "name": "stopOnHttpError",
+                                    "type": "boolean",
+                                    "label": "Return error if HTTP request fails",
+                                    "required": true
+                                },
+                                {
+                                    "name": "shareCookies",
+                                    "type": "boolean",
+                                    "label": "Share cookies with other HTTP modules",
+                                    "required": true
+                                },
+                                {
+                                    "name": "headers",
+                                    "spec": {
+                                        "name": "value",
+                                        "spec": [
+                                            {
+                                                "name": "name",
+                                                "type": "text",
+                                                "label": "Name",
+                                                "required": true,
+                                                "validate": {
+                                                    "pattern": "^[-!#$%&'*+.^_`|~0-9A-Za-z]+$"
+                                                }
+                                            },
+                                            {
+                                                "name": "value",
+                                                "type": "text",
+                                                "label": "Value"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Header"
+                                    },
+                                    "type": "array",
+                                    "label": "Headers"
+                                },
+                                {
+                                    "name": "queryParameters",
+                                    "spec": {
+                                        "name": "value",
+                                        "spec": [
+                                            {
+                                                "name": "name",
+                                                "type": "text",
+                                                "label": "Name",
+                                                "required": true
+                                            },
+                                            {
+                                                "name": "value",
+                                                "type": "text",
+                                                "label": "Value"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Parameter"
+                                    },
+                                    "type": "array",
+                                    "label": "Query parameters"
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "id": 13,
+                        "module": "linkedin:createVideoPost",
+                        "version": 2,
+                        "parameters": {
+                            "__IMTCONN__": 14171899
+                        },
+                        "mapper": {
+                            "title": "{{1.video_title}}",
+                            "video": "{{15.data}}",
+                            "method": "upload",
+                            "content": "{{1.post_text}}",
+                            "videoName": "{{1.filename}}",
+                            "visibility": "PUBLIC",
+                            "feedDistribution": "MAIN_FEED",
+                            "isReshareDisabledByAuthor": false
+                        },
+                        "metadata": {
+                            "designer": {
+                                "x": 549,
+                                "y": -50,
+                                "messages": [
+                                    {
+                                        "category": "reference",
+                                        "severity": "error",
+                                        "message": "'LinkedIn - Create a User Video Post' [module ID 13] references inaccessible module 'Webhooks - Custom webhook' [module ID 1]."
+                                    }
+                                ]
+                            },
+                            "restore": {
+                                "expect": {
+                                    "method": {
+                                        "label": "Upload by file"
+                                    },
+                                    "visibility": {
+                                        "mode": "chose",
+                                        "label": "Anyone"
+                                    },
+                                    "feedDistribution": {
+                                        "mode": "chose",
+                                        "label": "Main feed"
+                                    },
+                                    "isReshareDisabledByAuthor": {
+                                        "mode": "chose"
+                                    }
+                                },
+                                "parameters": {
+                                    "__IMTCONN__": {
+                                        "data": {
+                                            "scoped": "true",
+                                            "connection": "linkedin2"
+                                        },
+                                        "label": "My LinkedIn connection - TEST ThermoData (Contact ThermoData)"
+                                    }
+                                }
+                            },
+                            "parameters": [
+                                {
+                                    "name": "__IMTCONN__",
+                                    "type": "account:linkedin2,linkedin-openid",
+                                    "label": "Connection",
+                                    "required": true
+                                }
+                            ],
+                            "expect": [
+                                {
+                                    "name": "method",
+                                    "type": "select",
+                                    "label": "Choose Upload Method",
+                                    "required": true,
+                                    "validate": {
+                                        "enum": [
+                                            "upload",
+                                            "link"
+                                        ]
+                                    }
+                                },
+                                {
+                                    "name": "title",
+                                    "type": "text",
+                                    "label": "Title"
+                                },
+                                {
+                                    "name": "content",
+                                    "type": "text",
+                                    "label": "Content",
+                                    "required": true
+                                },
+                                {
+                                    "name": "visibility",
+                                    "type": "select",
+                                    "label": "Visibility",
+                                    "required": true,
+                                    "validate": {
+                                        "enum": [
+                                            "PUBLIC",
+                                            "CONNECTIONS",
+                                            "LOGGED_IN"
+                                        ]
+                                    }
+                                },
+                                {
+                                    "name": "feedDistribution",
+                                    "type": "select",
+                                    "label": "Feed Distribution",
+                                    "required": true,
+                                    "validate": {
+                                        "enum": [
+                                            "MAIN_FEED",
+                                            "NONE"
+                                        ]
+                                    }
+                                },
+                                {
+                                    "name": "isReshareDisabledByAuthor",
+                                    "type": "boolean",
+                                    "label": "Is Reshare Disabled",
+                                    "required": true
+                                },
+                                {
+                                    "name": "videoName",
+                                    "type": "text",
+                                    "label": "File Name",
+                                    "required": true
+                                },
+                                {
+                                    "name": "video",
+                                    "type": "buffer",
+                                    "label": "Data",
+                                    "required": true
+                                }
+                            ]
+                        }
+                    }
+                ]
+            ]
+        },
+        "zone": "eu2.make.com",
+        "notes": []
+    }
+}
