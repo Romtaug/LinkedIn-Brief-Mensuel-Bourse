@@ -966,6 +966,14 @@ with st.sidebar:
         cap_sel = st.multiselect("Capitalisation", list(CAP_BUCKETS.keys()), default=[],
                                  help="Filtre par taille d'entreprise (exclure les small caps, etc.)")
 
+    # Filtre Tendance technique (utilise la colonne tech_signal si présente)
+    trend_sel = []
+    if "tech_signal" in df.columns:
+        trend_sel = st.multiselect(
+            "Tendance technique",
+            ["🟢 Haussier", "🟡 Neutre", "🔴 Baissier"], default=[],
+            help="Analyse technique pure (MA 20/50/200 + RSI + MACD) calculée sur 1 an de cours.")
+
     st.markdown("### 📊 Métriques")
     pot_range = None
     if "total_pct" in df.columns:
@@ -1038,6 +1046,11 @@ if cap_sel and "market_cap_eur" in df_f.columns:
         lo, hi = CAP_BUCKETS[label]
         cap_mask |= df_f["market_cap_eur"].between(lo, hi)
     df_f = df_f[cap_mask]
+if trend_sel and "tech_signal" in df_f.columns:
+    # Match sur le label (Haussier/Neutre/Baissier) indépendamment de l'emoji exact
+    wanted = [t.split()[-1] for t in trend_sel]  # ["Haussier", ...]
+    df_f = df_f[df_f["tech_signal"].apply(
+        lambda s: any(w in str(s) for w in wanted))]
 if pot_range and "total_pct" in df_f.columns:
     df_f = df_f[df_f["total_pct"].between(pot_range[0], pot_range[1])]
 if perf_range and "perf_1m" in df_f.columns:
