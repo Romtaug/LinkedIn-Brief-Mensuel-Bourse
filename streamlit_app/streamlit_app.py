@@ -9,13 +9,13 @@
   mensuelle, et analyse IA via Claude.
 
   8 onglets :
-    1. 📋 Classement complet  - 1237 actions, consensus + dividende + fourchette
-    2. 🌍 Indices Globaux      - ~15 indices mondiaux live
-    3. 📊 Graphiques agrégés   - scatter, treemap, histogrammes, top 20
-    4. 🔍 Détail Ticker        - fondamental live + chart trading pro + Claude
-    5. ⚖️ Comparateur          - 2-4 actions base 100
-    6. 📈 Évolution            - entrées/sorties + variation de rang
-    7. 📂 Par Secteur          - meilleur PEA vs CTO
+    1. 📋 Classement complet  — 1237 actions, consensus + dividende + fourchette
+    2. 🌍 Indices Globaux      — ~15 indices mondiaux live
+    3. 📊 Graphiques agrégés   — scatter, treemap, histogrammes, top 20
+    4. 🔍 Détail Ticker        — fondamental live + chart trading pro + Claude
+    5. ⚖️ Comparateur          — 2-4 actions base 100
+    6. 📈 Évolution            — entrées/sorties + variation de rang
+    7. 📂 Par Secteur          — meilleur PEA vs CTO
     8. ℹ️ À propos
 
   Déploiement : Streamlit Community Cloud
@@ -100,12 +100,12 @@ GLOBAL_INDICES = {
 
 st.set_page_config(
     page_title="Brief Mensuel Bourse",
-    page_icon="📈",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
         "Get Help": f"https://github.com/{REPO_OWNER}/{REPO_NAME}",
-        "About": "Brief Mensuel Bourse - Analyse automatisée de +1200 actions PEA & CTO. "
+        "About": "Brief Mensuel Bourse — Analyse automatisée de +1200 actions PEA & CTO. "
                  "Code open-source sur GitHub.",
     },
 )
@@ -222,7 +222,7 @@ def load_xlsx_from_github(url: str = XLSX_URL) -> dict:
         r.raise_for_status()
         return pd.read_excel(BytesIO(r.content), sheet_name=None)
     except requests.HTTPError as e:
-        st.error(f"❌ Erreur HTTP {e.response.status_code} - la release n'existe peut-être pas encore.")
+        st.error(f"❌ Erreur HTTP {e.response.status_code} — la release n'existe peut-être pas encore.")
         return {}
     except Exception as e:
         st.error(f"❌ Erreur de chargement : {e}")
@@ -361,11 +361,11 @@ def get_country_from_ticker(ticker: str) -> str:
 def fmt_large_number(n, currency: str = "€") -> str:
     """Formate un grand nombre : 2.4T€, 850.3B€, 12.5M€."""
     if n is None or (isinstance(n, float) and np.isnan(n)):
-        return "-"
+        return "—"
     try:
         n = float(n)
     except (TypeError, ValueError):
-        return "-"
+        return "—"
     sign = "-" if n < 0 else ""
     n = abs(n)
     if n >= 1e12:
@@ -382,11 +382,11 @@ def fmt_large_number(n, currency: str = "€") -> str:
 def reco_to_stars(reco_mean) -> str:
     """reco_mean yfinance : 1=Strong Buy ... 5=Strong Sell. → étoiles."""
     if reco_mean is None or (isinstance(reco_mean, float) and np.isnan(reco_mean)):
-        return "-"
+        return "—"
     try:
         score = 6 - float(reco_mean)  # 1→5 étoiles, 5→1 étoile
     except (TypeError, ValueError):
-        return "-"
+        return "—"
     full = int(round(score))
     full = max(0, min(5, full))
     return "★" * full + "☆" * (5 - full)
@@ -394,11 +394,11 @@ def reco_to_stars(reco_mean) -> str:
 
 def fmt_pct(v, plus: bool = True) -> str:
     if v is None or (isinstance(v, float) and np.isnan(v)):
-        return "-"
+        return "—"
     try:
         v = float(v)
     except (TypeError, ValueError):
-        return "-"
+        return "—"
     return f"{v:+.1f}%" if plus else f"{v:.2f}%"
 
 
@@ -426,7 +426,7 @@ def build_claude_prompt(row: dict, info: dict | None = None) -> str:
         if fpe:  fond += f"\nPER (forward) : {fpe:.1f}"
         if beta: fond += f"\nBeta : {beta:.2f}"
 
-    return f"""Tu es le meilleur analyste financier indépendant du marché. Analyse l'action suivante en français, de manière concise et actionnable (~300 mots) :
+    return f"""Tu es un analyste financier indépendant. Analyse l'action suivante en français, de manière concise et actionnable (~300 mots) :
 
 Ticker : {row['ticker']}
 Nom : {row.get('name', '')}
@@ -466,6 +466,203 @@ def plot_styled_layout(fig, title: str = "", height: int = 400):
     return fig
 
 
+def make_styled_excel(df_export: pd.DataFrame, pct_cols: list, price_cols: list,
+                      sheet_name: str = "Classement") -> bytes:
+    """
+    Génère un Excel stylé : en-têtes Bloomberg, couleurs vert/rouge sur les %,
+    format cours en €, lignes alternées, colonnes auto-dimensionnées, en-tête figé.
+    """
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name
+
+    headers = list(df_export.columns)
+    header_fill = PatternFill("solid", fgColor="0A1628")
+    header_font = Font(bold=True, color="00D4FF", size=11, name="Calibri")
+    alt_fill = PatternFill("solid", fgColor="F2F6FC")
+    center = Alignment(horizontal="center", vertical="center")
+    left = Alignment(horizontal="left", vertical="center")
+    thin = Side(style="thin", color="D6DEE8")
+    border = Border(bottom=thin)
+
+    # Formats nombres avec couleur auto (Excel : [Green]/[Red])
+    pct_fmt = '[Green]+0.0"%";[Red]-0.0"%";0.0"%"'
+    price_fmt = '#,##0.00" €"'
+
+    # ── En-têtes ────────────────────────────────────────────────────
+    for c, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=c, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = center
+
+    # ── Données ─────────────────────────────────────────────────────
+    for r, (_, row) in enumerate(df_export.iterrows(), 2):
+        for c, h in enumerate(headers, 1):
+            val = row[h]
+            if isinstance(val, float) and pd.isna(val):
+                val = None
+            cell = ws.cell(row=r, column=c, value=val)
+            cell.border = border
+            if r % 2 == 1:
+                cell.fill = alt_fill
+            if h in pct_cols and isinstance(val, (int, float)):
+                cell.number_format = pct_fmt
+                cell.alignment = center
+            elif h in price_cols and isinstance(val, (int, float)):
+                cell.number_format = price_fmt
+                cell.alignment = center
+            elif isinstance(val, (int, float)):
+                cell.alignment = center
+            else:
+                cell.alignment = left
+
+    # ── Largeurs colonnes (selon contenu) ───────────────────────────
+    for c, h in enumerate(headers, 1):
+        max_len = len(str(h))
+        for v in df_export[h].head(200):
+            max_len = max(max_len, len(str(v)) if v is not None else 0)
+        ws.column_dimensions[get_column_letter(c)].width = min(max(max_len + 2, 8), 42)
+
+    # En-tête figé + auto-filtre
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{len(df_export)+1}"
+
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def build_technical_summary(hist: pd.DataFrame) -> dict:
+    """
+    Analyse les indicateurs techniques et génère une lecture en langage naturel.
+    100% descriptif/factuel — JAMAIS un conseil d'achat/vente.
+
+    Returns dict:
+      - verdict   : phrase de synthèse globale
+      - bias      : "haussier" | "baissier" | "neutre"
+      - bias_score: int (somme des signaux, négatif=baissier, positif=haussier)
+      - signals   : liste de (emoji, titre, texte) par indicateur
+    """
+    close = hist["Close"].dropna()
+    if len(close) < 30:
+        return {"verdict": "Pas assez d'historique pour une lecture technique fiable.",
+                "bias": "neutre", "bias_score": 0, "signals": []}
+
+    last = float(close.iloc[-1])
+    signals = []
+    score = 0  # >0 haussier, <0 baissier
+
+    # ── 1. TENDANCE (cours vs moyennes mobiles) ──────────────────────
+    ma20 = close.rolling(20).mean().iloc[-1]
+    ma50 = close.rolling(50).mean().iloc[-1]
+    ma200 = close.rolling(200).mean().iloc[-1] if len(close) >= 200 else None
+
+    above20 = last > ma20
+    above50 = last > ma50
+    above200 = (ma200 is not None) and (last > ma200)
+
+    if ma200 is not None:
+        if above20 and above50 and above200:
+            trend_txt = "Le cours est au-dessus de ses moyennes 20, 50 et 200 jours → tendance haussière confirmée sur tous les horizons."
+            score += 2
+        elif (not above20) and (not above50) and (not above200):
+            trend_txt = "Le cours est sous ses moyennes 20, 50 et 200 jours → tendance baissière sur tous les horizons."
+            score -= 2
+        elif above50 and not above200:
+            trend_txt = "Le cours repasse au-dessus de sa moyenne 50 jours mais reste sous la 200 jours → rebond de court terme dans une tendance de fond encore baissière."
+            score += 0
+        elif above200 and not above50:
+            trend_txt = "Le cours est au-dessus de sa moyenne 200 jours mais sous la 50 jours → consolidation dans une tendance de fond haussière."
+            score += 0
+        else:
+            trend_txt = "Position mitigée vis-à-vis des moyennes mobiles → tendance indécise (phase de transition)."
+    else:
+        if above20 and above50:
+            trend_txt = "Le cours est au-dessus de ses moyennes 20 et 50 jours → orientation haussière de court/moyen terme (historique insuffisant pour la 200 j)."
+            score += 1
+        elif (not above20) and (not above50):
+            trend_txt = "Le cours est sous ses moyennes 20 et 50 jours → orientation baissière de court/moyen terme."
+            score -= 1
+        else:
+            trend_txt = "Position mitigée vis-à-vis des moyennes 20/50 jours → tendance indécise."
+    signals.append(("📐", "Tendance (moyennes mobiles)", trend_txt))
+
+    # ── 2. RSI ───────────────────────────────────────────────────────
+    rsi = compute_rsi(close).iloc[-1]
+    if pd.notna(rsi):
+        if rsi >= 70:
+            rsi_txt = f"RSI à {rsi:.0f} → zone de surachat (>70). Le titre a beaucoup monté à court terme, un essoufflement ou une respiration est possible."
+            score -= 1
+        elif rsi <= 30:
+            rsi_txt = f"RSI à {rsi:.0f} → zone de survente (<30). Le titre a beaucoup baissé à court terme, un rebound technique est possible."
+            score += 1
+        elif rsi >= 55:
+            rsi_txt = f"RSI à {rsi:.0f} → zone neutre à légèrement acheteuse (momentum positif sans excès)."
+        elif rsi <= 45:
+            rsi_txt = f"RSI à {rsi:.0f} → zone neutre à légèrement vendeuse (momentum mou)."
+        else:
+            rsi_txt = f"RSI à {rsi:.0f} → zone neutre (ni surachat ni survente)."
+        signals.append(("⚡", "Momentum (RSI 14)", rsi_txt))
+
+    # ── 3. MACD ──────────────────────────────────────────────────────
+    macd, sig, _ = compute_macd(close)
+    if len(macd) >= 2 and pd.notna(macd.iloc[-1]) and pd.notna(sig.iloc[-1]):
+        m_now, s_now = macd.iloc[-1], sig.iloc[-1]
+        m_prev, s_prev = macd.iloc[-2], sig.iloc[-2]
+        crossed_up = (m_prev <= s_prev) and (m_now > s_now)
+        crossed_dn = (m_prev >= s_prev) and (m_now < s_now)
+        if crossed_up:
+            macd_txt = "Croisement haussier récent du MACD (la ligne MACD repasse au-dessus de sa ligne de signal) → signal de momentum positif."
+            score += 1
+        elif crossed_dn:
+            macd_txt = "Croisement baissier récent du MACD (la ligne MACD repasse sous sa ligne de signal) → signal de momentum négatif."
+            score -= 1
+        elif m_now > s_now:
+            macd_txt = "MACD au-dessus de sa ligne de signal → momentum haussier en cours."
+            score += 1
+        else:
+            macd_txt = "MACD sous sa ligne de signal → momentum baissier en cours."
+            score -= 1
+        signals.append(("📊", "MACD (12,26,9)", macd_txt))
+
+    # ── 4. BOLLINGER (position dans les bandes) ──────────────────────
+    bmid, bup, blo = compute_bollinger(close)
+    if pd.notna(bup.iloc[-1]) and pd.notna(blo.iloc[-1]):
+        up, lo, mid = bup.iloc[-1], blo.iloc[-1], bmid.iloc[-1]
+        rng = up - lo
+        if rng > 0:
+            pos = (last - lo) / rng  # 0 = bande basse, 1 = bande haute
+            if pos >= 0.95:
+                boll_txt = "Le cours touche la bande supérieure de Bollinger → tension acheteuse forte (parfois précède une respiration)."
+            elif pos <= 0.05:
+                boll_txt = "Le cours touche la bande inférieure de Bollinger → pression vendeuse forte (parfois précède un rebond)."
+            elif pos >= 0.65:
+                boll_txt = "Le cours évolue dans la moitié haute des bandes de Bollinger → orientation positive."
+            elif pos <= 0.35:
+                boll_txt = "Le cours évolue dans la moitié basse des bandes de Bollinger → orientation négative."
+            else:
+                boll_txt = "Le cours évolue autour de sa moyenne mobile 20 jours (milieu des bandes) → pas de tension particulière."
+            signals.append(("🎚️", "Volatilité (Bollinger 20,2)", boll_txt))
+
+    # ── VERDICT GLOBAL ───────────────────────────────────────────────
+    if score >= 2:
+        bias = "haussier"
+        verdict = "🟢 Configuration technique globalement HAUSSIÈRE : la majorité des indicateurs pointent dans le même sens positif."
+    elif score <= -2:
+        bias = "baissier"
+        verdict = "🔴 Configuration technique globalement BAISSIÈRE : la majorité des indicateurs pointent dans le même sens négatif."
+    else:
+        bias = "neutre"
+        verdict = "🟡 Configuration technique MITIGÉE / NEUTRE : les indicateurs s'équilibrent, pas de signal directionnel net."
+
+    return {"verdict": verdict, "bias": bias, "bias_score": score, "signals": signals}
+
+
 # ═════════════════════════════════════════════════════════════════════
 #  HEADER
 # ═════════════════════════════════════════════════════════════════════
@@ -477,7 +674,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown(f"# 📈 Brief Mensuel <span style='color:{COLORS['blue']}'>Bourse.</span>",
+st.markdown(f"# 📊 Brief Mensuel <span style='color:{COLORS['blue']}'>Bourse.</span>",
             unsafe_allow_html=True)
 st.markdown(f"<p style='color:{COLORS['text_mid']}; font-size:15px;'>"
             f"+1200 actions analysées · PEA & CTO · Consensus analystes & dividendes · "
@@ -555,6 +752,13 @@ with st.sidebar:
         dmax = float(df["div_pct"].max())
         div_min = st.slider("Dividende minimum (%)", 0.0, max(1.0, dmax), 0.0, step=0.5, format="%.1f%%")
 
+    price_range = None
+    if "price_eur" in df.columns:
+        dfpr = df.dropna(subset=["price_eur"])
+        if not dfpr.empty:
+            pmn, pmx = float(dfpr["price_eur"].min()), float(dfpr["price_eur"].max())
+            price_range = st.slider("Cours (€)", pmn, pmx, (pmn, pmx), format="%.0f €")
+
     n_analysts_min = 0
     if "analyst_count" in df.columns:
         amax = int(df["analyst_count"].max()) if len(df) else 50
@@ -601,6 +805,8 @@ if perf_range and "perf_1m" in df_f.columns:
     df_f = df_f[df_f["perf_1m"].between(perf_range[0], perf_range[1]) | df_f["perf_1m"].isna()]
 if div_min > 0 and "div_pct" in df_f.columns:
     df_f = df_f[df_f["div_pct"] >= div_min]
+if price_range and "price_eur" in df_f.columns:
+    df_f = df_f[df_f["price_eur"].between(price_range[0], price_range[1]) | df_f["price_eur"].isna()]
 if n_analysts_min > 0 and "analyst_count" in df_f.columns:
     df_f = df_f[df_f["analyst_count"] >= n_analysts_min]
 
@@ -677,7 +883,7 @@ with tab_table:
     cols_show = [c for c in [
         "Rang", "ticker", "name", "stars", "country", "sector_fr", "pea",
         "price_eur", "perf_1m", "target_pct", "target_low_pct", "target_high_pct",
-        "div_pct", "total_pct", "reco_label", "analyst_count", "isin",
+        "div_pct", "total_pct", "reco_label", "analyst_count",
         "boursorama_link", "yahoo_link",
     ] if c in df_show.columns]
 
@@ -687,7 +893,7 @@ with tab_table:
         "perf_1m": "Perf 1M", "target_pct": "Cible 12M",
         "target_low_pct": "Cible basse", "target_high_pct": "Cible haute",
         "div_pct": "Dividende", "total_pct": "Potentiel",
-        "reco_label": "Conseil", "analyst_count": "Analystes", "isin": "ISIN",
+        "reco_label": "Conseil", "analyst_count": "Analystes",
         "boursorama_link": "Boursorama", "yahoo_link": "Yahoo",
     }
     df_disp = df_show[cols_show].rename(columns=rename)
@@ -695,6 +901,7 @@ with tab_table:
     st.dataframe(
         df_disp, height=620, use_container_width=True, hide_index=True,
         column_config={
+            "Note":        st.column_config.TextColumn("Note", help="Consensus analystes (★ = achat)"),
             "PEA":         st.column_config.CheckboxColumn("PEA"),
             "Cours €":     st.column_config.NumberColumn("Cours €", format="%.2f €"),
             "Perf 1M":     st.column_config.NumberColumn("Perf 1M", format="%+.1f %%"),
@@ -703,25 +910,39 @@ with tab_table:
             "Cible haute": st.column_config.NumberColumn("Haut", format="%+.0f %%"),
             "Dividende":   st.column_config.NumberColumn("Div", format="%.2f %%"),
             "Potentiel":   st.column_config.NumberColumn("Potentiel", format="%+.1f %%"),
+            "Analystes":   st.column_config.NumberColumn("Analystes", format="%d"),
             "Boursorama":  st.column_config.LinkColumn("BR", display_text="🏛️"),
             "Yahoo":       st.column_config.LinkColumn("YF", display_text="🔍"),
         },
     )
 
+    # ── Export (Excel stylé + CSV) ──────────────────────────────────
+    # Colonnes export : noms FR lisibles, sans les liens bruts (gardés en colonnes dédiées)
+    export_cols = [c for c in [
+        "Rang", "ticker", "name", "stars", "country", "sector_fr", "pea",
+        "price_eur", "perf_1m", "target_pct", "target_low_pct", "target_high_pct",
+        "div_pct", "total_pct", "reco_label", "analyst_count",
+    ] if c in df_show.columns]
+    df_export = df_show[export_cols].rename(columns=rename)
+    df_export = df_export.rename(columns={"pea": "PEA"})
+    if "PEA" in df_export.columns:
+        df_export["PEA"] = df_export["PEA"].map({True: "Oui", False: "Non"})
+
+    pct_cols = ["Perf 1M", "Cible 12M", "Cible basse", "Cible haute", "Dividende", "Potentiel"]
+    price_cols = ["Cours €"]
+
     c1, c2 = st.columns(2)
     with c1:
-        csv = df_show.to_csv(index=False).encode("utf-8")
-        st.download_button("💾 Télécharger CSV", csv,
-                           file_name=f"brief_bourse_{datetime.now():%Y-%m-%d}.csv",
-                           mime="text/csv", use_container_width=True)
-    with c2:
-        buf = BytesIO()
-        with pd.ExcelWriter(buf, engine="openpyxl") as w:
-            df_show.to_excel(w, sheet_name="Classement filtré", index=False)
-        st.download_button("📊 Télécharger Excel", buf.getvalue(),
+        xlsx_bytes = make_styled_excel(df_export, pct_cols, price_cols, sheet_name="Classement")
+        st.download_button("📊 Télécharger Excel (mis en forme)", xlsx_bytes,
                            file_name=f"brief_bourse_{datetime.now():%Y-%m-%d}.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                            use_container_width=True)
+    with c2:
+        csv = df_export.to_csv(index=False, sep=";").encode("utf-8-sig")  # ; + BOM = Excel FR friendly
+        st.download_button("💾 Télécharger CSV", csv,
+                           file_name=f"brief_bourse_{datetime.now():%Y-%m-%d}.csv",
+                           mime="text/csv", use_container_width=True)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -881,7 +1102,7 @@ with tab_ticker:
             f"<span style='color:{COLORS['text_mid']}'>"
             f"{get_country_from_ticker(ticker_sel)} · {row.get('sector_fr', '-')} · "
             f"{'✅ Éligible PEA' if row.get('pea') else '🌍 CTO uniquement'} · "
-            f"ISIN {row.get('isin') or '-'}</span>",
+            f"ISIN {row.get('isin') or '—'}</span>",
             unsafe_allow_html=True,
         )
 
@@ -896,7 +1117,7 @@ with tab_ticker:
 
         st.markdown(
             f"**Consensus** : {reco_to_stars(row.get('reco_mean'))} "
-            f"· {row.get('reco_label', '-')} "
+            f"· {row.get('reco_label', '—')} "
             f"· {int(row.get('analyst_count', 0) or 0)} analystes "
             f"· fourchette {fmt_pct(row.get('target_low_pct'))} → {fmt_pct(row.get('target_high_pct'))}"
         )
@@ -918,21 +1139,21 @@ with tab_ticker:
             f1, f2, f3, f4 = st.columns(4)
             f1.metric("Capitalisation", fmt_large_number(info.get("marketCap"), ""))
             pe = info.get("trailingPE")
-            f2.metric("PER (trailing)", f"{pe:.1f}" if pe else "-")
+            f2.metric("PER (trailing)", f"{pe:.1f}" if pe else "—")
             fpe = info.get("forwardPE")
-            f3.metric("PER (forward)", f"{fpe:.1f}" if fpe else "-")
+            f3.metric("PER (forward)", f"{fpe:.1f}" if fpe else "—")
             beta = info.get("beta")
-            f4.metric("Beta", f"{beta:.2f}" if beta else "-")
+            f4.metric("Beta", f"{beta:.2f}" if beta else "—")
 
             g1, g2, g3, g4 = st.columns(4)
             pb = info.get("priceToBook")
-            g1.metric("Price / Book", f"{pb:.2f}" if pb else "-")
+            g1.metric("Price / Book", f"{pb:.2f}" if pb else "—")
             w52h = info.get("fiftyTwoWeekHigh")
-            g2.metric("Haut 52 sem.", f"{w52h:.2f}" if w52h else "-")
+            g2.metric("Haut 52 sem.", f"{w52h:.2f}" if w52h else "—")
             w52l = info.get("fiftyTwoWeekLow")
-            g3.metric("Bas 52 sem.", f"{w52l:.2f}" if w52l else "-")
+            g3.metric("Bas 52 sem.", f"{w52l:.2f}" if w52l else "—")
             emp = info.get("fullTimeEmployees")
-            g4.metric("Employés", f"{emp:,}".replace(",", " ") if emp else "-")
+            g4.metric("Employés", f"{emp:,}".replace(",", " ") if emp else "—")
 
             industry = info.get("industry")
             website = info.get("website")
@@ -1118,6 +1339,32 @@ with tab_ticker:
             s3.metric("Plus haut", f"{close.max():.2f}")
             s4.metric("Plus bas", f"{close.min():.2f}")
 
+            # ── LECTURE TECHNIQUE AUTOMATIQUE ───────────────────────
+            st.markdown("#### 🧭 Lecture technique automatique")
+            summary = build_technical_summary(hist)
+
+            bias_color = {"haussier": COLORS["green"], "baissier": COLORS["red"],
+                          "neutre": COLORS["amber"]}.get(summary["bias"], COLORS["amber"])
+            st.markdown(
+                f"<div style='background:{COLORS['bg_panel']}; border-left:4px solid {bias_color}; "
+                f"padding:16px 20px; border-radius:4px; margin-bottom:14px;'>"
+                f"<div style='font-size:17px; font-weight:700; color:{COLORS['text']};'>"
+                f"{summary['verdict']}</div></div>",
+                unsafe_allow_html=True,
+            )
+
+            for emoji, titre, texte in summary["signals"]:
+                st.markdown(
+                    f"<div style='padding:8px 0; border-bottom:1px solid {COLORS['grid']};'>"
+                    f"<span style='color:{COLORS['blue']}; font-weight:700;'>{emoji} {titre}</span><br>"
+                    f"<span style='color:{COLORS['text_mid']}; font-size:14px;'>{texte}</span></div>",
+                    unsafe_allow_html=True,
+                )
+
+            st.caption("⚠️ Lecture automatique des indicateurs à titre informatif — ce n'est PAS un "
+                       "conseil en investissement. Les indicateurs techniques décrivent le passé récent, "
+                       "pas l'avenir. Risque de perte en capital.")
+
 
 # ─────────────────────────────────────────────────────────────────────
 #  TAB 5 : COMPARATEUR
@@ -1213,7 +1460,7 @@ with tab_evol:
     snap_prev = load_snapshot(prev_in)
 
     if snap_cur.empty and snap_prev.empty:
-        st.warning("⚠️ Aucun snapshot trouvé pour ces mois. Les snapshots s'accumulent au fil des mois - "
+        st.warning("⚠️ Aucun snapshot trouvé pour ces mois. Les snapshots s'accumulent au fil des mois — "
                    "reviens après plusieurs briefs pour voir l'évolution.")
     elif snap_prev.empty:
         st.info(f"📊 Snapshot {cur_in} trouvé ({len(snap_cur)} actions), mais pas {prev_in}. "
@@ -1283,9 +1530,9 @@ with tab_sectors:
         bc = d[d["pea"] == False].nlargest(1, "total_pct")
         rows_al.append({
             "Secteur": sec,
-            "PEA": f"{bp.iloc[0]['name']} · {bp.iloc[0]['ticker']} ({bp.iloc[0]['total_pct']:+.1f}%)" if not bp.empty else "-",
+            "PEA": f"{bp.iloc[0]['name']} · {bp.iloc[0]['ticker']} ({bp.iloc[0]['total_pct']:+.1f}%)" if not bp.empty else "—",
             "PEA score": bp.iloc[0]["total_pct"] if not bp.empty else None,
-            "CTO": f"{bc.iloc[0]['name']} · {bc.iloc[0]['ticker']} ({bc.iloc[0]['total_pct']:+.1f}%)" if not bc.empty else "-",
+            "CTO": f"{bc.iloc[0]['name']} · {bc.iloc[0]['ticker']} ({bc.iloc[0]['total_pct']:+.1f}%)" if not bc.empty else "—",
             "CTO score": bc.iloc[0]["total_pct"] if not bc.empty else None,
         })
     dal = pd.DataFrame(rows_al)
@@ -1320,7 +1567,7 @@ with tab_sectors:
 # ─────────────────────────────────────────────────────────────────────
 with tab_about:
     st.markdown(f"""
-### 📊 Brief Mensuel Bourse - Le produit d'analyse de marché
+### 📊 Brief Mensuel Bourse — Le produit d'analyse de marché
 
 Application compagnon du **Brief Mensuel** publié chaque mois sur LinkedIn.
 Explore librement les **+1200 actions** analysées : consensus analystes, dividendes,
@@ -1353,7 +1600,7 @@ indices mondiaux, analyse technique pro et analyse IA.
 
 ### ⚠️ Disclaimer
 
-Données issues de Yahoo Finance - **aucun conseil en investissement**. L'investissement en
+Données issues de Yahoo Finance — **aucun conseil en investissement**. L'investissement en
 bourse comporte un **risque de perte en capital**. Les performances passées ne préjugent pas
 des performances futures. Fais tes propres recherches.
 
