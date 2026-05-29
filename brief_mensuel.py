@@ -1973,6 +1973,7 @@ FUN 40-50% = stock-picking, 1 action/secteur minimum"""
         parts.append(
             "⚠️ « Risque de perte en capital. Ceci n'est pas un conseil. »\n"
             f"💳 Parrainage Boursorama {CODE_PARRAINAGE} (+100€) : {PARRAINAGE}\n"
+            "🌐 Screener complet : brief-mensuel-bourse.streamlit.app\n"
             f"🔔 Prochain brief début {next_month_fr} !"
         )
         parts.append(hashtags)
