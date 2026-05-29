@@ -604,7 +604,7 @@ def _write_styled_sheet(ws, df_export: pd.DataFrame, pct_cols: list, price_cols:
         max_len = len(str(h))
         for v in df_export[h].head(200):
             max_len = max(max_len, len(str(v)) if v is not None else 0)
-        ws.column_dimensions[get_column_letter(c)].width = min(max(max_len + 5, 10), 45)
+        ws.column_dimensions[get_column_letter(c)].width = min(max(max_len + 6, 10), 45)
 
     ws.freeze_panes = "A2"
     if n_rows > 0:
