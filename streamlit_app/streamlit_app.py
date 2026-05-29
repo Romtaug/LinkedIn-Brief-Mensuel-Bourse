@@ -184,13 +184,17 @@ st.markdown(f"""
         background: {COLORS['blue']};
         color: {COLORS['bg']};
     }}
-    .stTabs [data-baseweb="tab-list"] {{ gap: 6px; flex-wrap: wrap; }}
+    .stTabs [data-baseweb="tab-list"] {{ gap: 6px; flex-wrap: wrap; width: 100%; }}
     .stTabs [data-baseweb="tab"] {{
         background: {COLORS['bg_panel']};
         border-radius: 0;
         color: {COLORS['text_mid']};
         font-weight: 700;
         font-size: 13px;
+        flex: 1 1 0;
+        justify-content: center;
+        text-align: center;
+        white-space: nowrap;
     }}
     .stTabs [aria-selected="true"] {{
         background: {COLORS['blue']};
