@@ -2082,7 +2082,7 @@ def _build_post_complete(rk: Rankings, period_fr: str, prev_month_fr: str) -> tu
 
     # ── Hashtags (10 ou 5) ──────────────────────────────────────────
     hashtags_full = "#Bourse #YahooFinance #Boursorama #Consensus"
-    hashtags_min  = "#Bourse #YahooFinance #Boursorama #Consensus"  
+    hashtags_min  = "#Bourse #YahooFinance #Boursorama #Consensus"
 
     # ── Blocs CTA optionnels ────────────────────────────────────────
     cta_emojis_block = """💬 Choisis ta réaction selon ta stratégie :
@@ -3255,6 +3255,9 @@ def main() -> int:
         # ── 7. Construction post LinkedIn ───────────────────────────
         banner("📝  POST LINKEDIN")
         post, comment = build_linkedin_post(rk, period_fr, prev_month_fr, snapshot)
+        # Nettoyage : retire tout espace/saut de ligne traînant en fin (sécurité affichage LinkedIn)
+        post = post.rstrip()
+        comment = comment.rstrip()
         log.info("📝  Post   : %d chars / %d max", len(post), LINKEDIN_POST_MAX)
         log.info("📝  Comm.  : %d chars / %d max",
                  len(comment), LINKEDIN_COMMENT_MAX)
