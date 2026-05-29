@@ -426,7 +426,7 @@ def build_claude_prompt(row: dict, info: dict | None = None) -> str:
         if fpe:  fond += f"\nPER (forward) : {fpe:.1f}"
         if beta: fond += f"\nBeta : {beta:.2f}"
 
-    return f"""Tu es un analyste financier indépendant. Analyse l'action suivante en français, de manière concise et actionnable (~300 mots) :
+    return f"""Tu es le meilleur analyste financier indépendant du marché. Analyse l'action suivante en français, de manière concise et actionnable (~300 mots) :
 
 Ticker : {row['ticker']}
 Nom : {row.get('name', '')}
