@@ -713,6 +713,46 @@ HSI = [
 
 
 # ═════════════════════════════════════════════════════════════════════
+#  4bis. MAPPING TICKER → INDICE SOURCE PRÉCIS + TAILLE (cap)
+# ═════════════════════════════════════════════════════════════════════
+# Permet de filtrer dans la web app par indice précis (CAC 40, Nikkei...)
+# et par taille (Large / Mid / Small) pour exclure les petites caps.
+# Ordre = priorité : si un ticker est dans plusieurs listes, le PREMIER gagne
+# (on privilégie l'indice le plus large / canonique).
+
+INDEX_SOURCES = [
+    # label affiché,                taille,   liste
+    ("🇺🇸 S&P 500",       "Large", SP500),
+    ("🇺🇸 NASDAQ 100",    "Large", NASDAQ100_EXTRA),
+    ("🇺🇸 S&P 400 Mid",   "Mid",   SP400_MID),
+    ("🇺🇸 S&P 600 Small", "Small", SP600_SMALL),
+    ("🇪🇺 STOXX 600",     "Large", STOXX),
+    ("🇩🇪 DAX 40",        "Large", DAX),
+    ("🇯🇵 Nikkei 225",    "Large", NIKKEI),
+    ("🇨🇦 TSX 60",        "Large", TSX60),
+    ("🇦🇺 ASX 50",        "Large", ASX50),
+    ("🇭🇰 Hang Seng",     "Large", HSI),
+    ("🇫🇷 SBF 120 Mid",   "Mid",   SBF120_MID),
+    ("🇫🇷 CAC Mid 60",    "Mid",   CAC_MID_60),
+    ("🇬🇧 FTSE 250",      "Mid",   FTSE250),
+    ("🇪🇺 STOXX Mid",     "Mid",   STOXX_MID_EU),
+    ("🇩🇪 MDAX",          "Mid",   MDAX),
+    ("🇩🇪 TecDAX",        "Mid",   TECDAX),
+    ("🇫🇷 CAC Small",     "Small", CAC_SMALL),
+    ("🇩🇪 SDAX",          "Small", SDAX),
+]
+
+# Construction des dicts de lookup (premier match = priorité)
+TICKER_TO_INDEX: dict[str, str] = {}
+TICKER_TO_SIZE: dict[str, str] = {}
+for _label, _size, _lst in INDEX_SOURCES:
+    for _tk in _lst:
+        if _tk not in TICKER_TO_INDEX:
+            TICKER_TO_INDEX[_tk] = _label
+            TICKER_TO_SIZE[_tk] = _size
+
+
+# ═════════════════════════════════════════════════════════════════════
 #  5. PEA, SECTEURS, DRAPEAUX, INDICES
 # ═════════════════════════════════════════════════════════════════════
 
@@ -976,12 +1016,19 @@ def fetch_one(ticker: str, market: str,
             # ── Conversion EUR (si fx_rates fournis) ─────────────────
             price_eur = to_eur(price, currency, fx_rates) if fx_rates else None
 
+            # ── Indice source précis + taille + capitalisation ───────
+            mcap = info.get("marketCap")
+            mcap_eur = to_eur(mcap, currency, fx_rates) if (fx_rates and mcap) else None
+
             return {
                 "ticker": ticker,
                 "name": name,
                 "sector": sector,
                 "sector_fr": SECTOR_FR[sector],
                 "market": market,
+                "index_name": TICKER_TO_INDEX.get(ticker, market),
+                "market_cap": mcap,
+                "market_cap_eur": mcap_eur,
                 "price": round(price, 2),
                 "currency": currency,
                 "price_eur": price_eur,
@@ -1973,7 +2020,6 @@ FUN 40-50% = stock-picking, 1 action/secteur minimum"""
         parts.append(
             "⚠️ « Risque de perte en capital. Ceci n'est pas un conseil. »\n"
             f"💳 Parrainage Boursorama {CODE_PARRAINAGE} (+100€) : {PARRAINAGE}\n"
-            "🌐 Screener complet : brief-mensuel-bourse.streamlit.app\n"
             f"🔔 Prochain brief début {next_month_fr} !"
         )
         parts.append(hashtags)
