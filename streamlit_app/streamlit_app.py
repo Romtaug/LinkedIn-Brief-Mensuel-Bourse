@@ -100,7 +100,7 @@ GLOBAL_INDICES = {
 
 st.set_page_config(
     page_title="Brief Mensuel Bourse",
-    page_icon="📈",
+    page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
@@ -442,11 +442,11 @@ def build_claude_prompt(row: dict, info: dict | None = None) -> str:
     return f"""Tu es un analyste financier senior, indépendant et rigoureux, spécialisé en actions cotées. Tu produis une analyse d'investissement complète, chiffrée et sans complaisance.
 
 ⚠️ IMPORTANT — UTILISE TES OUTILS DE RECHERCHE WEB. Les données ci-dessous sont une photo figée. AVANT de rédiger, recherche sur le web les informations à jour suivantes :
-- Les DERNIERS résultats trimestriels/annuels publiés (chiffre d'affaires, BPA, marges, guidance)
-- Les actualités récentes (3-6 derniers mois) : annonces, contrats, rachats, litiges, changements de direction
-- Les révisions récentes de recommandations/objectifs d'analystes
-- La position concurrentielle et les tendances de son secteur
-- Tout risque réglementaire, macro ou spécifique récent
+• Les DERNIERS résultats trimestriels/annuels publiés (chiffre d'affaires, BPA, marges, guidance)
+• Les actualités récentes (3-6 derniers mois) : annonces, contrats, rachats, litiges, changements de direction
+• Les révisions récentes de recommandations/objectifs d'analystes
+• La position concurrentielle et les tendances de son secteur
+• Tout risque réglementaire, macro ou spécifique récent
 Croise systématiquement ces données fraîches avec les chiffres figés ci-dessous (ils peuvent dater).
 
 ═══════════════════════════════════
@@ -488,7 +488,10 @@ STRUCTURE DE TA RÉPONSE (en français, détaillée)
 
 **6. Profil & risques** — À quel type d'investisseur ce titre convient (prudent / équilibré / dynamique ; horizon ; PEA ou CTO) ? Quels sont les 2-3 risques majeurs à surveiller ?
 
-**7. Conclusion** — Synthèse actionnable en 3-4 lignes : l'essentiel à retenir."""
+**7. Conclusion** — Synthèse actionnable en 3-4 lignes : l'essentiel à retenir.
+
+⚠️ Termine en précisant clairement que ceci n'est PAS un conseil en investissement, que l'analyse peut contenir des erreurs, et que tout investissement comporte un risque de perte en capital. L'investisseur doit faire ses propres recherches."""
+
 
 def plot_styled_layout(fig, title: str = "", height: int = 400):
     fig.update_layout(
@@ -714,7 +717,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown(f"# 📈 Brief Mensuel <span style='color:{COLORS['blue']}'>Bourse.</span>",
+st.markdown(f"# 📊 Brief Mensuel <span style='color:{COLORS['blue']}'>Bourse.</span>",
             unsafe_allow_html=True)
 st.markdown(f"<p style='color:{COLORS['text_mid']}; font-size:15px;'>"
             f"+1200 actions analysées · PEA & CTO · Consensus analystes & dividendes · "
@@ -773,6 +776,23 @@ with st.sidebar:
     if "market" in df.columns:
         markets = sorted(df["market"].dropna().unique().tolist())
         markets_sel = st.multiselect("Marché d'origine", markets, default=[])
+
+    index_sel = []
+    if "index_name" in df.columns:
+        indices = sorted(df["index_name"].dropna().unique().tolist())
+        index_sel = st.multiselect("Indice de provenance", indices, default=[],
+                                   help="Indice boursier précis (CAC 40, DAX 40, Nikkei...)")
+
+    CAP_BUCKETS = {
+        "🐋 Méga cap (> 200 Md€)":   (200e9, float("inf")),
+        "🐂 Grande cap (10–200 Md€)": (10e9, 200e9),
+        "🐎 Moyenne cap (2–10 Md€)":  (2e9, 10e9),
+        "🐭 Petite cap (< 2 Md€)":    (0, 2e9),
+    }
+    cap_sel = []
+    if "market_cap_eur" in df.columns and df["market_cap_eur"].notna().any():
+        cap_sel = st.multiselect("Capitalisation", list(CAP_BUCKETS.keys()), default=[],
+                                 help="Filtre par taille d'entreprise (exclure les small caps, etc.)")
 
     st.markdown("### 📊 Métriques")
     pot_range = None
@@ -839,6 +859,14 @@ if countries_sel:
     df_f = df_f[df_f["country"].isin(countries_sel)]
 if markets_sel and "market" in df_f.columns:
     df_f = df_f[df_f["market"].isin(markets_sel)]
+if index_sel and "index_name" in df_f.columns:
+    df_f = df_f[df_f["index_name"].isin(index_sel)]
+if cap_sel and "market_cap_eur" in df_f.columns:
+    cap_mask = pd.Series(False, index=df_f.index)
+    for label in cap_sel:
+        lo, hi = CAP_BUCKETS[label]
+        cap_mask |= df_f["market_cap_eur"].between(lo, hi)
+    df_f = df_f[cap_mask]
 if pot_range and "total_pct" in df_f.columns:
     df_f = df_f[df_f["total_pct"].between(pot_range[0], pot_range[1])]
 if perf_range and "perf_1m" in df_f.columns:
@@ -920,16 +948,21 @@ with tab_table:
     df_show = df_show.reset_index(drop=True)
     df_show.insert(0, "Rang", range(1, len(df_show) + 1))
 
+    # Colonne capi en Md€ (tri numérique + affichage propre)
+    if "market_cap_eur" in df_show.columns:
+        df_show["cap_mde"] = df_show["market_cap_eur"] / 1e9
+
     cols_show = [c for c in [
-        "Rang", "ticker", "name", "stars", "country", "sector_fr", "pea",
-        "price_eur", "perf_1m", "target_pct", "target_low_pct", "target_high_pct",
+        "Rang", "ticker", "name", "stars", "country", "index_name", "sector_fr", "pea",
+        "price_eur", "cap_mde", "perf_1m", "target_pct", "target_low_pct", "target_high_pct",
         "div_pct", "total_pct", "reco_label", "analyst_count",
         "boursorama_link", "yahoo_link",
     ] if c in df_show.columns]
 
     rename = {
         "ticker": "Ticker", "name": "Nom", "stars": "Note", "country": "Pays",
-        "sector_fr": "Secteur", "pea": "PEA", "price_eur": "Cours €",
+        "index_name": "Indice", "sector_fr": "Secteur", "pea": "PEA",
+        "price_eur": "Cours €", "cap_mde": "Capi",
         "perf_1m": "Perf 1M", "target_pct": "Cible 12M",
         "target_low_pct": "Cible basse", "target_high_pct": "Cible haute",
         "div_pct": "Dividende", "total_pct": "Potentiel",
@@ -942,8 +975,10 @@ with tab_table:
         df_disp, height=620, use_container_width=True, hide_index=True,
         column_config={
             "Note":        st.column_config.TextColumn("Note", help="Consensus analystes (★ = achat)"),
+            "Indice":      st.column_config.TextColumn("Indice", help="Indice boursier de provenance"),
             "PEA":         st.column_config.CheckboxColumn("PEA"),
             "Cours €":     st.column_config.NumberColumn("Cours €", format="%.2f €"),
+            "Capi":        st.column_config.NumberColumn("Capi", format="%.1f Md€", help="Capitalisation boursière en milliards d'€"),
             "Perf 1M":     st.column_config.NumberColumn("Perf 1M", format="%+.1f %%"),
             "Cible 12M":   st.column_config.NumberColumn("Cible 12M", format="%+.1f %%"),
             "Cible basse": st.column_config.NumberColumn("Bas", format="%+.0f %%"),
@@ -1117,15 +1152,20 @@ with tab_charts:
 with tab_ticker:
     st.markdown("### 🔍 Analyse complète d'une action")
 
-    tickers_sorted = df_f.sort_values("ticker")["ticker"].tolist()
+    tickers_sorted = df_f.sort_values("total_pct", ascending=False, na_position="last")["ticker"].tolist()
     if not tickers_sorted:
         st.info("Pas de tickers dans la sélection actuelle (relâche les filtres).")
     else:
         c_sel, c_per = st.columns([3, 1])
         with c_sel:
+            def _fmt_ticker(t):
+                r = df_f[df_f["ticker"] == t].iloc[0]
+                pot = r.get("total_pct")
+                pot_s = f"{pot:+.1f}%" if pd.notna(pot) else "—"
+                return f"{t} · {r['name']} · 🎯 {pot_s}"
             ticker_sel = st.selectbox(
-                "Choisis une action", tickers_sorted,
-                format_func=lambda t: f"{t} · {df_f[df_f['ticker']==t]['name'].iloc[0]}",
+                "Choisis une action (triée par potentiel décroissant)", tickers_sorted,
+                format_func=_fmt_ticker,
             )
         with c_per:
             period_sel = st.selectbox(
@@ -1646,6 +1686,7 @@ des performances futures. Fais tes propres recherches.
 
 ### 🔗 Liens
 
+- 📦 Code : [github.com/{REPO_OWNER}/{REPO_NAME}](https://github.com/{REPO_OWNER}/{REPO_NAME})
 - 💼 LinkedIn : [Romain Taugourdeau]({LINKEDIN_URL})
 - 💳 Parrainage Boursorama (+100€) : [{CODE_PARRAIN}]({PARRAINAGE_URL})
 
