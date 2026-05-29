@@ -537,19 +537,12 @@ def plot_styled_layout(fig, title: str = "", height: int = 400):
     return fig
 
 
-def make_styled_excel(df_export: pd.DataFrame, pct_cols: list, price_cols: list,
-                      sheet_name: str = "Classement") -> bytes:
-    """
-    Génère un Excel stylé : en-têtes Bloomberg, couleurs vert/rouge sur les %,
-    format cours en €, lignes alternées, colonnes auto-dimensionnées, en-tête figé.
-    """
-    from openpyxl import Workbook
+def _write_styled_sheet(ws, df_export: pd.DataFrame, pct_cols: list, price_cols: list,
+                        color_scale_cols: list | None = None):
+    """Écrit un DataFrame dans une feuille stylée (en-têtes Bloomberg, couleurs %, etc.)."""
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = sheet_name
+    from openpyxl.formatting.rule import ColorScaleRule
 
     headers = list(df_export.columns)
     header_fill = PatternFill("solid", fgColor="0A1628")
@@ -560,18 +553,17 @@ def make_styled_excel(df_export: pd.DataFrame, pct_cols: list, price_cols: list,
     thin = Side(style="thin", color="D6DEE8")
     border = Border(bottom=thin)
 
-    # Formats nombres avec couleur auto (Excel : [Green]/[Red])
     pct_fmt = '[Green]+0.0"%";[Red]-0.0"%";0.0"%"'
     price_fmt = '#,##0.00" €"'
 
-    # ── En-têtes ────────────────────────────────────────────────────
+    # En-têtes
     for c, h in enumerate(headers, 1):
         cell = ws.cell(row=1, column=c, value=h)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = center
 
-    # ── Données ─────────────────────────────────────────────────────
+    # Données
     for r, (_, row) in enumerate(df_export.iterrows(), 2):
         for c, h in enumerate(headers, 1):
             val = row[h]
@@ -592,17 +584,166 @@ def make_styled_excel(df_export: pd.DataFrame, pct_cols: list, price_cols: list,
             else:
                 cell.alignment = left
 
-    # ── Largeurs colonnes (selon contenu) ───────────────────────────
+    n_rows = len(df_export)
+
+    # Mise en forme conditionnelle (échelle rouge→jaune→vert) sur colonnes choisies
+    if color_scale_cols and n_rows > 0:
+        for h in color_scale_cols:
+            if h in headers:
+                ci = headers.index(h) + 1
+                col = get_column_letter(ci)
+                rng = f"{col}2:{col}{n_rows + 1}"
+                ws.conditional_formatting.add(rng, ColorScaleRule(
+                    start_type="percentile", start_value=5,  start_color="FFF8696B",
+                    mid_type="percentile",   mid_value=50,   mid_color="FFFFEB84",
+                    end_type="percentile",   end_value=95,   end_color="FF63BE7B",
+                ))
+
+    # Largeurs colonnes
     for c, h in enumerate(headers, 1):
         max_len = len(str(h))
         for v in df_export[h].head(200):
             max_len = max(max_len, len(str(v)) if v is not None else 0)
-        ws.column_dimensions[get_column_letter(c)].width = min(max(max_len + 2, 8), 42)
+        ws.column_dimensions[get_column_letter(c)].width = min(max(max_len + 5, 10), 45)
 
-    # En-tête figé + auto-filtre
     ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{len(df_export)+1}"
+    if n_rows > 0:
+        ws.auto_filter.ref = f"A1:{get_column_letter(len(headers))}{n_rows + 1}"
 
+
+def _write_synthesis_sheet(ws, kpis: dict, top_df: pd.DataFrame, pct_cols: list, price_cols: list):
+    """Première feuille : bandeau titre + KPIs + top opportunités."""
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+
+    title_fill = PatternFill("solid", fgColor="0A1628")
+    title_font = Font(bold=True, color="00D4FF", size=16, name="Calibri")
+    sub_font = Font(color="8B9BB4", size=10, name="Calibri", italic=True)
+    kpi_label_font = Font(color="4A5C7A", size=10, name="Calibri", bold=True)
+    kpi_val_font = Font(color="0A1628", size=14, name="Calibri", bold=True)
+
+    # Bandeau titre (lignes 1-2)
+    ws.merge_cells("A1:F1")
+    c = ws.cell(row=1, column=1, value="BRIEF MENSUEL BOURSE — Synthèse")
+    c.fill = title_fill; c.font = title_font
+    c.alignment = Alignment(horizontal="left", vertical="center")
+    ws.row_dimensions[1].height = 28
+    ws.merge_cells("A2:F2")
+    c2 = ws.cell(row=2, column=1,
+                 value=f"Généré le {datetime.now():%d/%m/%Y à %H:%M} · Données Yahoo Finance · "
+                       f"Romain Taugourdeau")
+    c2.font = sub_font
+
+    # KPIs (lignes 4+)
+    r = 4
+    for label, value in kpis.items():
+        lc = ws.cell(row=r, column=1, value=label); lc.font = kpi_label_font
+        vc = ws.cell(row=r, column=2, value=value); vc.font = kpi_val_font
+        r += 1
+
+    # Top opportunités (titre + tableau)
+    r += 1
+    th = ws.cell(row=r, column=1, value="🏆 TOP OPPORTUNITÉS (par potentiel total)")
+    th.font = Font(bold=True, color="0A1628", size=12, name="Calibri")
+    r += 1
+    _write_styled_sheet_at(ws, top_df, pct_cols, price_cols, start_row=r,
+                           color_scale_cols=["Potentiel"])
+
+    ws.column_dimensions["A"].width = 26
+    for col in ["B", "C", "D", "E", "F", "G", "H"]:
+        ws.column_dimensions[col].width = max(ws.column_dimensions[col].width or 0, 14)
+
+
+def _write_styled_sheet_at(ws, df_export, pct_cols, price_cols, start_row=1, color_scale_cols=None):
+    """Comme _write_styled_sheet mais à partir d'une ligne donnée (pour la feuille Synthèse)."""
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from openpyxl.formatting.rule import ColorScaleRule
+
+    headers = list(df_export.columns)
+    header_fill = PatternFill("solid", fgColor="0A1628")
+    header_font = Font(bold=True, color="00D4FF", size=11, name="Calibri")
+    center = Alignment(horizontal="center", vertical="center")
+    left = Alignment(horizontal="left", vertical="center")
+    pct_fmt = '[Green]+0.0"%";[Red]-0.0"%";0.0"%"'
+    price_fmt = '#,##0.00" €"'
+
+    for c, h in enumerate(headers, 1):
+        cell = ws.cell(row=start_row, column=c, value=h)
+        cell.fill = header_fill; cell.font = header_font; cell.alignment = center
+
+    for i, (_, row) in enumerate(df_export.iterrows(), 1):
+        rr = start_row + i
+        for c, h in enumerate(headers, 1):
+            val = row[h]
+            if isinstance(val, float) and pd.isna(val):
+                val = None
+            cell = ws.cell(row=rr, column=c, value=val)
+            if h in pct_cols and isinstance(val, (int, float)):
+                cell.number_format = pct_fmt; cell.alignment = center
+            elif h in price_cols and isinstance(val, (int, float)):
+                cell.number_format = price_fmt; cell.alignment = center
+            elif isinstance(val, (int, float)):
+                cell.alignment = center
+            else:
+                cell.alignment = left
+
+    n = len(df_export)
+    if color_scale_cols and n > 0:
+        for h in color_scale_cols:
+            if h in headers:
+                col = get_column_letter(headers.index(h) + 1)
+                rng = f"{col}{start_row+1}:{col}{start_row+n}"
+                ws.conditional_formatting.add(rng, ColorScaleRule(
+                    start_type="percentile", start_value=5,  start_color="FFF8696B",
+                    mid_type="percentile",   mid_value=50,   mid_color="FFFFEB84",
+                    end_type="percentile",   end_value=95,   end_color="FF63BE7B",
+                ))
+
+
+def make_workbook_excel(sheets: dict, pct_cols: list, price_cols: list,
+                        synth: dict | None = None,
+                        color_scale_cols: list | None = None) -> bytes:
+    """
+    Génère un classeur Excel multi-feuilles.
+    sheets : {nom_feuille: DataFrame}  ·  synth : {kpis, top_df} optionnel (1re feuille).
+    """
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    default = wb.active
+    first_used = False
+
+    if synth:
+        default.title = "Synthèse"
+        _write_synthesis_sheet(default, synth["kpis"], synth["top_df"], pct_cols, price_cols)
+        first_used = True
+
+    for name, dfx in sheets.items():
+        if dfx is None or len(dfx) == 0:
+            continue
+        if not first_used:
+            ws = default; ws.title = name[:31]; first_used = True
+        else:
+            ws = wb.create_sheet(name[:31])
+        _write_styled_sheet(ws, dfx, pct_cols, price_cols, color_scale_cols=color_scale_cols)
+
+    if not first_used:  # sécurité : aucun onglet écrit
+        default.title = "Vide"
+
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def make_styled_excel(df_export: pd.DataFrame, pct_cols: list, price_cols: list,
+                      sheet_name: str = "Classement") -> bytes:
+    """Compat : Excel mono-feuille (utilise le helper de feuille stylée)."""
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name
+    _write_styled_sheet(ws, df_export, pct_cols, price_cols, color_scale_cols=["Potentiel"])
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()
@@ -1026,28 +1167,63 @@ with tab_table:
         },
     )
 
-    # ── Export (Excel stylé + CSV) ──────────────────────────────────
-    # Colonnes export : noms FR lisibles, sans les liens bruts (gardés en colonnes dédiées)
+    # ── Export (Excel multi-feuilles + CSV) ─────────────────────────
+    # Colonnes export : noms FR lisibles, sans les liens bruts
     export_cols = [c for c in [
-        "Rang", "ticker", "name", "stars", "country", "sector_fr", "pea",
+        "Rang", "ticker", "name", "stars", "country", "index_name", "sector_fr", "pea",
         "price_eur", "perf_1m", "target_pct", "target_low_pct", "target_high_pct",
         "div_pct", "total_pct", "reco_label", "analyst_count",
     ] if c in df_show.columns]
-    df_export = df_show[export_cols].rename(columns=rename)
-    df_export = df_export.rename(columns={"pea": "PEA"})
-    if "PEA" in df_export.columns:
-        df_export["PEA"] = df_export["PEA"].map({True: "Oui", False: "Non"})
+
+    def _prep_export(d: pd.DataFrame) -> pd.DataFrame:
+        cols = [c for c in export_cols if c in d.columns]
+        out = d[cols].rename(columns=rename)
+        if "pea" in out.columns:  # au cas où non renommé
+            out = out.rename(columns={"pea": "PEA"})
+        if "PEA" in out.columns:
+            out["PEA"] = out["PEA"].map({True: "Oui", False: "Non"})
+        return out
+
+    df_export = _prep_export(df_show)  # classement complet (pour CSV + feuille principale)
 
     pct_cols = ["Perf 1M", "Cible 12M", "Cible basse", "Cible haute", "Dividende", "Potentiel"]
     price_cols = ["Cours €"]
 
+    # Feuilles du classeur
+    sheets_xlsx = {
+        "Classement complet": df_export,
+        "Top PEA":  _prep_export(df_show[df_show["pea"] == True]) if "pea" in df_show.columns else None,
+        "Top CTO":  _prep_export(df_show[df_show["pea"] == False]) if "pea" in df_show.columns else None,
+    }
+    # Feuille "Par secteur" : meilleur potentiel par secteur
+    if "sector_fr" in df_show.columns:
+        best_sec = (df_show.dropna(subset=["total_pct"])
+                    .sort_values("total_pct", ascending=False)
+                    .drop_duplicates(subset="sector_fr"))
+        sheets_xlsx["Par secteur"] = _prep_export(best_sec)
+
+    # Feuille Synthèse : KPIs + top 15
+    kpis = {
+        "Actions analysées :": int(n_total),
+        "Éligibles PEA :": int(n_pea),
+        "CTO (mondial) :": int(n_cto),
+        "Potentiel moyen :": f"{avg_pot:+.1f} %",
+        "Dividende moyen :": f"{avg_div:.2f} %",
+        "Meilleur potentiel :": (f"{df_show.iloc[0]['name']} ({df_show.iloc[0]['total_pct']:+.1f} %)"
+                                 if n_total and "total_pct" in df_show.columns else "-"),
+    }
+    top15 = _prep_export(df_show.nlargest(15, "total_pct")) if "total_pct" in df_show.columns else df_export.head(15)
+    synth = {"kpis": kpis, "top_df": top15}
+
     c1, c2 = st.columns(2)
     with c1:
-        xlsx_bytes = make_styled_excel(df_export, pct_cols, price_cols, sheet_name="Classement")
-        st.download_button("📊 Télécharger Excel (mis en forme)", xlsx_bytes,
+        xlsx_bytes = make_workbook_excel(sheets_xlsx, pct_cols, price_cols, synth=synth,
+                                         color_scale_cols=["Potentiel"])
+        st.download_button("📊 Télécharger Excel", xlsx_bytes,
                            file_name=f"brief_bourse_{datetime.now():%Y-%m-%d}.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                           use_container_width=True)
+                           use_container_width=True,
+                           help="Classeur multi-feuilles : Synthèse · Classement · Top PEA · Top CTO · Par secteur")
     with c2:
         csv = df_export.to_csv(index=False, sep=";").encode("utf-8-sig")  # ; + BOM = Excel FR friendly
         st.download_button("💾 Télécharger CSV", csv,
