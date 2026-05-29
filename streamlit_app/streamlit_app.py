@@ -80,6 +80,7 @@ GLOBAL_INDICES = {
     "^NDX":      ("🇺🇸 NASDAQ 100",     "Tech US"),
     "^DJI":      ("🇺🇸 Dow Jones",      "Industrielles US"),
     "^STOXX":    ("🇪🇺 STOXX 600",      "Actions européennes"),
+    "^STOXX50E": ("🇪🇺 Euro Stoxx 50",  "50 plus grandes capi zone euro"),
     "^FCHI":     ("🇫🇷 CAC 40",         "Actions françaises"),
     "^GDAXI":    ("🇩🇪 DAX 40",         "Actions allemandes"),
     "^FTSE":     ("🇬🇧 FTSE 100",       "Actions britanniques"),
@@ -104,9 +105,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        "Get Help": f"https://github.com/{REPO_OWNER}/{REPO_NAME}",
-        "About": "Brief Mensuel Bourse - Analyse automatisée de +1200 actions PEA & CTO. "
-                 "Code open-source sur GitHub.",
+        "Get Help": LINKEDIN_URL,
+        "About": "Brief Mensuel Bourse - Analyse automatisée de +1200 actions PEA & CTO.",
     },
 )
 
@@ -764,7 +764,7 @@ if not sheets:
         "⚠️ Aucune donnée disponible pour le moment. Le brief mensuel est publié le "
         "**premier jour ouvré de chaque mois**. Reviens bientôt !"
     )
-    st.info(f"📦 [Voir le code source sur GitHub](https://github.com/{REPO_OWNER}/{REPO_NAME})")
+    st.info(f"💼 [Suivre le Brief Mensuel sur LinkedIn]({LINKEDIN_URL})")
     st.stop()
 
 df = sheets.get("By Total Gain", pd.DataFrame())
@@ -778,6 +778,9 @@ if df.empty:
 df["country"] = df["ticker"].apply(get_country_from_ticker)
 if "reco_mean" in df.columns:
     df["stars"] = df["reco_mean"].apply(reco_to_stars)
+if "reco_label" in df.columns:
+    df["reco_label"] = (df["reco_label"].astype(str)
+                        .replace({"none": "—", "None": "—", "nan": "—", "": "—"}))
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -859,7 +862,6 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### 🔗 Liens")
-    st.markdown(f"📦 [Code GitHub](https://github.com/{REPO_OWNER}/{REPO_NAME})")
     st.markdown(f"💼 [LinkedIn]({LINKEDIN_URL})")
     st.markdown(f"💳 [Parrainage Boursorama (+100€)]({PARRAINAGE_URL}) `{CODE_PARRAIN}`")
 
@@ -932,7 +934,7 @@ st.markdown("---")
 # ═════════════════════════════════════════════════════════════════════
 
 (tab_table, tab_indices, tab_charts, tab_ticker,
- tab_compare, tab_evol, tab_sectors, tab_about) = st.tabs([
+ tab_compare, tab_evol, tab_sectors, tab_alloc, tab_about) = st.tabs([
     "📋 Classement",
     "🌍 Indices Globaux",
     "📊 Graphiques",
@@ -940,6 +942,7 @@ st.markdown("---")
     "⚖️ Comparateur",
     "📈 Évolution",
     "📂 Par Secteur",
+    "🎯 Allocation",
     "ℹ️ À propos",
 ])
 
@@ -1731,7 +1734,101 @@ with tab_sectors:
 
 
 # ─────────────────────────────────────────────────────────────────────
-#  TAB 8 : À PROPOS
+#  TAB 8 : ALLOCATION (simulateur SOCLE / FUN)
+# ─────────────────────────────────────────────────────────────────────
+with tab_alloc:
+    st.markdown("### 🎯 Simulateur d'allocation SOCLE / FUN")
+    st.caption("Construis ton portefeuille selon la règle d'or : un SOCLE d'ETF mondiaux "
+               "(sécurité, diversification) + une poche FUN de stock-picking (performance).")
+
+    ac1, ac2, ac3 = st.columns(3)
+    with ac1:
+        capital = st.number_input("💰 Capital à investir (€)", min_value=100.0,
+                                  value=10000.0, step=500.0, format="%.0f")
+    with ac2:
+        pct_socle = st.slider("🛡️ Part du SOCLE (ETF)", 30, 80, 55, step=5, format="%d%%")
+    with ac3:
+        n_fun = st.slider("🎲 Nombre de lignes FUN", 1, 15, 8,
+                          help="Nombre d'actions dans ta poche stock-picking (idéalement 1 par secteur)")
+
+    montant_socle = capital * pct_socle / 100
+    montant_fun   = capital - montant_socle
+    socle_sp      = montant_socle / 2
+    socle_stoxx   = montant_socle / 2
+
+    def _eur(x):
+        return f"{x:,.0f} €".replace(",", " ")
+
+    st.markdown("---")
+    am1, am2, am3 = st.columns(3)
+    am1.metric("🛡️ SOCLE (ETF)", _eur(montant_socle), delta=f"{pct_socle}%")
+    am2.metric("🎲 FUN (actions)", _eur(montant_fun), delta=f"{100-pct_socle}%")
+    am3.metric("💰 Total investi", _eur(capital))
+
+    col_pie, col_txt = st.columns([1, 1])
+    with col_pie:
+        fig_alloc = go.Figure(go.Pie(
+            labels=["🛡️ SOCLE · ETF S&P 500", "🛡️ SOCLE · ETF STOXX 600", "🎲 FUN · Stock-picking"],
+            values=[socle_sp, socle_stoxx, montant_fun],
+            marker=dict(colors=[COLORS["blue"], COLORS["blue_dim"], COLORS["amber"]]),
+            hole=0.55, textinfo="percent",
+        ))
+        fig_alloc.update_layout(
+            height=320, paper_bgcolor=COLORS["bg"], plot_bgcolor=COLORS["bg"],
+            font=dict(family="JetBrains Mono, monospace", color=COLORS["text"], size=12),
+            legend=dict(orientation="h", y=-0.1, bgcolor="rgba(0,0,0,0)"),
+            margin=dict(l=10, r=10, t=10, b=10), showlegend=True,
+        )
+        st.plotly_chart(fig_alloc, use_container_width=True)
+    with col_txt:
+        st.markdown("#### 🛡️ Ton SOCLE")
+        st.markdown(
+            f"La base sécurisée : ~85% des fonds actifs sont battus par leur indice sur 10 ans "
+            f"(étude SPIVA). On répartit en deux ETF mondiaux, 50/50 :\n\n"
+            f"- **{_eur(socle_sp)}** sur un **ETF S&P 500** (actions US large cap)\n"
+            f"- **{_eur(socle_stoxx)}** sur un **ETF STOXX 600** (actions européennes)\n\n"
+            f"Astuce PEA : il existe des ETF S&P 500 et STOXX 600 éligibles PEA (à synthétique)."
+        )
+
+    st.markdown("---")
+    st.markdown("#### 🎲 Ta poche FUN — suggestions depuis ton classement filtré")
+    montant_par_ligne = montant_fun / n_fun if n_fun else 0
+    st.caption(f"Soit **{_eur(montant_par_ligne)}** par ligne. Suggestions ci-dessous : "
+               f"les meilleurs potentiels de ta sélection actuelle, **1 par secteur** (diversification).")
+
+    if df_f.empty:
+        st.info("Relâche les filtres pour obtenir des suggestions FUN.")
+    else:
+        fun_picks = (df_f.dropna(subset=["total_pct"])
+                     .sort_values("total_pct", ascending=False)
+                     .drop_duplicates(subset="sector_fr")
+                     .head(n_fun)
+                     .copy())
+        fun_picks["Montant"] = montant_par_ligne
+        show_cols = [c for c in ["ticker", "name", "sector_fr", "country", "pea",
+                                 "total_pct", "Montant"] if c in fun_picks.columns]
+        fun_disp = fun_picks[show_cols].rename(columns={
+            "ticker": "Ticker", "name": "Nom", "sector_fr": "Secteur",
+            "country": "Pays", "pea": "PEA", "total_pct": "Potentiel",
+        })
+        st.dataframe(
+            fun_disp, use_container_width=True, hide_index=True,
+            column_config={
+                "PEA":       st.column_config.CheckboxColumn("PEA"),
+                "Potentiel": st.column_config.NumberColumn("Potentiel", format="%+.1f %%"),
+                "Montant":   st.column_config.NumberColumn("Montant", format="%.0f €"),
+            },
+        )
+        if len(fun_picks) < n_fun:
+            st.caption(f"ℹ️ Seulement {len(fun_picks)} secteurs disponibles dans ta sélection "
+                       f"(tu as demandé {n_fun} lignes). Élargis les filtres pour plus de diversité.")
+
+    st.caption("⚠️ Simulateur pédagogique — ce n'est pas un conseil en investissement. "
+               "Les montants sont indicatifs, à adapter à ta situation. Risque de perte en capital.")
+
+
+# ─────────────────────────────────────────────────────────────────────
+#  TAB 9 : À PROPOS
 # ─────────────────────────────────────────────────────────────────────
 with tab_about:
     st.markdown(f"""
@@ -1774,12 +1871,11 @@ des performances futures. Fais tes propres recherches.
 
 ### 🔗 Liens
 
-- 📦 Code : [github.com/{REPO_OWNER}/{REPO_NAME}](https://github.com/{REPO_OWNER}/{REPO_NAME})
 - 💼 LinkedIn : [Romain Taugourdeau]({LINKEDIN_URL})
 - 💳 Parrainage Boursorama (+100€) : [{CODE_PARRAIN}]({PARRAINAGE_URL})
 
 ---
-*Brief Mensuel Bourse · Open Source · MIT License*
+*Brief Mensuel Bourse · Données Yahoo Finance*
 """)
 
 
