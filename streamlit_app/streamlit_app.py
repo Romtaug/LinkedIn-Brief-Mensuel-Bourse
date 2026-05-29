@@ -1606,7 +1606,6 @@ des performances futures. Fais tes propres recherches.
 
 ### 🔗 Liens
 
-- 📦 Code : [github.com/{REPO_OWNER}/{REPO_NAME}](https://github.com/{REPO_OWNER}/{REPO_NAME})
 - 💼 LinkedIn : [Romain Taugourdeau]({LINKEDIN_URL})
 - 💳 Parrainage Boursorama (+100€) : [{CODE_PARRAIN}]({PARRAINAGE_URL})
 
