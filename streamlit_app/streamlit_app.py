@@ -409,7 +409,6 @@ def color_for_pct(v) -> str:
 
 
 def build_claude_prompt(row: dict, info: dict | None = None) -> str:
-def build_claude_prompt(row: dict, info: dict | None = None) -> str:
     """Prompt Claude PRO : recherche web forcée + analyse détaillée + notation multi-critères."""
     pea_str = "Oui ✅ (éligible PEA)" if row.get("pea") else "Non ❌ (CTO uniquement)"
     country = get_country_from_ticker(row["ticker"])
@@ -489,30 +488,7 @@ STRUCTURE DE TA RÉPONSE (en français, détaillée)
 
 **6. Profil & risques** — À quel type d'investisseur ce titre convient (prudent / équilibré / dynamique ; horizon ; PEA ou CTO) ? Quels sont les 2-3 risques majeurs à surveiller ?
 
-**7. Conclusion** — Synthèse actionnable en 3-4 lignes : l'essentiel à retenir.
-
-⚠️ Termine en précisant clairement que ceci n'est PAS un conseil en investissement, que l'analyse peut contenir des erreurs, et que tout investissement comporte un risque de perte en capital. L'investisseur doit faire ses propres recherches."""
-Ticker : {row['ticker']}
-Nom : {row.get('name', '')}
-Secteur : {row.get('sector_fr', '')}
-Pays / Marché : {country}
-Éligibilité PEA : {pea_str}
-─────
-Cours actuel : {row.get('price_eur', '?')}€ (équivalent EUR, prix natif {row.get('price', '?')} {row.get('currency', '')})
-Cible analystes 12m : {fmt_pct(row.get('target_pct'))} ({row.get('reco_label', '-')} · {int(row.get('analyst_count', 0) or 0)} analystes)
-Fourchette analystes : bas {fmt_pct(row.get('target_low_pct'))} / haut {fmt_pct(row.get('target_high_pct'))}
-Dividende : {div_str}
-Performance mois précédent : {fmt_pct(row.get('perf_1m'))}
-Score potentiel total : {fmt_pct(row.get('total_pct'))} (cible + dividende){fond}
-
-Structure ta réponse en 4 sections :
-1. **L'entreprise en 3 lignes** (activité, marché, position concurrentielle)
-2. **Lecture des chiffres** (que disent les analystes ? le momentum ? la valorisation ?)
-3. **Thèse haussière vs baissière** (2 arguments chacun)
-4. **Conclusion et n ote sur 10** (à qui s'adresse ce titre ? quels risques majeurs ?)
-
-⚠️ Précise que ce n'est PAS un conseil en investissement (risque de perte en capital)."""
-
+**7. Conclusion** — Synthèse actionnable en 3-4 lignes : l'essentiel à retenir."""
 
 def plot_styled_layout(fig, title: str = "", height: int = 400):
     fig.update_layout(
