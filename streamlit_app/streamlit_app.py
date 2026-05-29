@@ -56,7 +56,7 @@ COLORS = {
     "bg_panel": "#0f1d34",
     "bg_row":   "#13243f",
     "grid":     "#1e3358",
-    "blue":     "#00d4ff",
+    "blue":     "#00bfe6",
     "blue_dim": "#0080a0",
     "amber":    "#ffaa00",
     "text":     "#e8eaf0",
@@ -1348,7 +1348,7 @@ with tab_ticker:
             st.components.v1.html(f"""
             <div>
               <button onclick="copyAndRedirect()" style="
-                background:#00d4ff;color:#0a1628;border:none;padding:12px 24px;
+                background:#00bfe6;color:#0a1628;border:none;padding:12px 24px;
                 font-weight:800;font-size:14px;letter-spacing:1px;cursor:pointer;
                 border-radius:4px;width:100%;font-family:'JetBrains Mono',monospace;
                 text-transform:uppercase;">🤖 Analyser avec Claude</button>
