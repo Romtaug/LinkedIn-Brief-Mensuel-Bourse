@@ -780,7 +780,7 @@ if "reco_mean" in df.columns:
     df["stars"] = df["reco_mean"].apply(reco_to_stars)
 if "reco_label" in df.columns:
     df["reco_label"] = (df["reco_label"].astype(str)
-                        .replace({"none": "—", "None": "—", "nan": "—", "": "—"}))
+                        .replace({"none": "-", "None": "-", "nan": "-", "": "-"}))
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -936,7 +936,7 @@ st.markdown("---")
 (tab_table, tab_indices, tab_charts, tab_ticker,
  tab_compare, tab_evol, tab_sectors, tab_alloc, tab_about) = st.tabs([
     "📋 Classement",
-    "🌍 Indices Globaux",
+    "🌍 Indices",
     "📊 Graphiques",
     "🔍 Détail Ticker",
     "⚖️ Comparateur",
@@ -1796,14 +1796,22 @@ with tab_alloc:
 
     st.markdown("---")
     st.markdown("#### 🎲 Ta poche FUN — suggestions depuis ton classement filtré")
+    fun_elig = st.radio("Éligibilité de la poche FUN", ["Tout", "PEA uniquement", "CTO uniquement"],
+                        horizontal=True)
     montant_par_ligne = montant_fun / n_fun if n_fun else 0
     st.caption(f"Soit **{_eur(montant_par_ligne)}** par ligne. Suggestions ci-dessous : "
                f"les meilleurs potentiels de ta sélection actuelle, **1 par secteur** (diversification).")
 
-    if df_f.empty:
-        st.info("Relâche les filtres pour obtenir des suggestions FUN.")
+    df_fun = df_f.copy()
+    if fun_elig == "PEA uniquement" and "pea" in df_fun.columns:
+        df_fun = df_fun[df_fun["pea"] == True]
+    elif fun_elig == "CTO uniquement" and "pea" in df_fun.columns:
+        df_fun = df_fun[df_fun["pea"] == False]
+
+    if df_fun.empty:
+        st.info("Aucune action ne correspond (relâche les filtres ou change l'éligibilité).")
     else:
-        fun_picks = (df_f.dropna(subset=["total_pct"])
+        fun_picks = (df_fun.dropna(subset=["total_pct"])
                      .sort_values("total_pct", ascending=False)
                      .drop_duplicates(subset="sector_fr")
                      .head(n_fun)
