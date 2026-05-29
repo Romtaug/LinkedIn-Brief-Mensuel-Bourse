@@ -50,6 +50,14 @@ on:
         type: string
         required: false
         default: "50"
+      send_webhook:
+        description: "Publier sur LinkedIn via webhook Make.com (false = test app sans poster)"
+        type: choice
+        required: true
+        default: "true"
+        options:
+          - "true"
+          - "false"
 
 jobs:
   brief-prod:
@@ -99,7 +107,7 @@ jobs:
           TEST_MODE: ${{ github.event.inputs.test_mode || 'false' }}
           N_TICKERS_TEST: ${{ github.event.inputs.n_tickers_test || '50' }}
           FORCE_RUN: ${{ github.event.inputs.force_run || 'false' }}
-          SEND_TO_WEBHOOK: "true"
+          SEND_TO_WEBHOOK: ${{ github.event.inputs.send_webhook || 'true' }}
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
           CODE_PARRAINAGE: ${{ secrets.CODE_PARRAINAGE }}
           PARRAINAGE_URL: ${{ secrets.PARRAINAGE_URL }}
