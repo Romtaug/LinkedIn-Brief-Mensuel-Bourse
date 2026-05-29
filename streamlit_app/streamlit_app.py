@@ -1741,6 +1741,10 @@ with tab_alloc:
     st.caption("Construis ton portefeuille selon la règle d'or : un SOCLE d'ETF mondiaux "
                "(sécurité, diversification) + une poche FUN de stock-picking (performance).")
 
+    # Défaut = 1 action par secteur (nb de secteurs disponibles dans la sélection)
+    n_secteurs = df_f["sector_fr"].nunique() if ("sector_fr" in df_f.columns and not df_f.empty) else 8
+    n_secteurs = max(1, min(15, int(n_secteurs)))
+
     ac1, ac2, ac3 = st.columns(3)
     with ac1:
         capital = st.number_input("💰 Capital à investir (€)", min_value=100.0,
@@ -1748,8 +1752,8 @@ with tab_alloc:
     with ac2:
         pct_socle = st.slider("🛡️ Part du SOCLE (ETF)", 30, 80, 55, step=5, format="%d%%")
     with ac3:
-        n_fun = st.slider("🎲 Nombre de lignes FUN", 1, 15, 8,
-                          help="Nombre d'actions dans ta poche stock-picking (idéalement 1 par secteur)")
+        n_fun = st.slider("🎲 Nombre de lignes FUN", 1, 15, n_secteurs,
+                          help="Par défaut : 1 action par secteur (diversification maximale)")
 
     montant_socle = capital * pct_socle / 100
     montant_fun   = capital - montant_socle
