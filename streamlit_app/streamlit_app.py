@@ -100,7 +100,7 @@ GLOBAL_INDICES = {
 
 st.set_page_config(
     page_title="Brief Mensuel Bourse",
-    page_icon="📊",
+    page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
@@ -477,7 +477,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown(f"# 📊 Brief Mensuel <span style='color:{COLORS['blue']}'>Bourse.</span>",
+st.markdown(f"# 📈 Brief Mensuel <span style='color:{COLORS['blue']}'>Bourse.</span>",
             unsafe_allow_html=True)
 st.markdown(f"<p style='color:{COLORS['text_mid']}; font-size:15px;'>"
             f"+1200 actions analysées · PEA & CTO · Consensus analystes & dividendes · "
