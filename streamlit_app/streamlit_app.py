@@ -1271,7 +1271,8 @@ with tab_indices:
                 with col:
                     perf_d = d["perf_day"]
                     arrow = "▲" if perf_d >= 0 else "▼"
-                    clr = COLORS["green"] if perf_d >= 0 else COLORS["red"]
+                    # Couleur de la courbe = perf du MOIS (tendance de fond)
+                    clr = COLORS["green"] if d["perf_month"] >= 0 else COLORS["red"]
                     # mini sparkline
                     spark = go.Figure(go.Scatter(
                         y=d["series"], mode="lines",
@@ -2019,20 +2020,14 @@ with tab_alloc:
 
     st.markdown("---")
     st.markdown("#### 🎲 Ta poche FUN — suggestions depuis ton classement filtré")
-    fun_elig = st.radio("Éligibilité de la poche FUN", ["Tout", "PEA uniquement", "CTO uniquement"],
-                        horizontal=True)
     montant_par_ligne = montant_fun / n_fun if n_fun else 0
     st.caption(f"Soit **{_eur(montant_par_ligne)}** par ligne. Suggestions ci-dessous : "
                f"les meilleurs potentiels de ta sélection actuelle, **1 par secteur** (diversification).")
 
     df_fun = df_f.copy()
-    if fun_elig == "PEA uniquement" and "pea" in df_fun.columns:
-        df_fun = df_fun[df_fun["pea"] == True]
-    elif fun_elig == "CTO uniquement" and "pea" in df_fun.columns:
-        df_fun = df_fun[df_fun["pea"] == False]
 
     if df_fun.empty:
-        st.info("Aucune action ne correspond (relâche les filtres ou change l'éligibilité).")
+        st.info("Aucune action ne correspond (relâche les filtres).")
     else:
         fun_picks = (df_fun.dropna(subset=["total_pct"])
                      .sort_values("total_pct", ascending=False)
