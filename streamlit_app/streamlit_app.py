@@ -112,12 +112,34 @@ st.set_page_config(
 
 st.markdown(f"""
 <style>
+    /* ── Forçage du thème dark (indépendant de config.toml) ── */
+    .stApp {{
+        background: {COLORS['bg']} !important;
+        color: {COLORS['text']} !important;
+    }}
+    [data-testid="stHeader"] {{
+        background: {COLORS['bg']} !important;
+    }}
+    [data-testid="stAppViewContainer"], .main, .block-container {{
+        background: {COLORS['bg']} !important;
+        color: {COLORS['text']} !important;
+    }}
+    /* Widgets natifs (selectbox, slider, radio, multiselect) sur fond sombre */
+    [data-baseweb="select"] > div, [data-baseweb="input"] > div {{
+        background: {COLORS['bg_panel']} !important;
+        border-color: {COLORS['grid']} !important;
+    }}
+    .stSlider [data-baseweb="slider"] {{ color: {COLORS['blue']} !important; }}
+    label, .stMarkdown, p, span, li {{ color: {COLORS['text']}; }}
+    [data-testid="stMetricLabel"] {{ color: {COLORS['text_mid']} !important; }}
+
     html, body, [class*="css"] {{
         font-family: 'JetBrains Mono', 'Courier New', monospace;
     }}
     h1, h2, h3, h4 {{
         font-family: 'Inter', sans-serif !important;
         letter-spacing: -0.5px;
+        color: {COLORS['text']};
     }}
     .bar-top {{
         background: {COLORS['blue']};
