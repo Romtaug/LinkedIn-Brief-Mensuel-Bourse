@@ -935,23 +935,47 @@ with st.sidebar:
     st.markdown("### 🎯 Filtres")
     elig = st.radio("Éligibilité", ["Tout", "PEA uniquement", "CTO uniquement"])
 
+    # Ordre "du plus connu au moins connu" pour Pays et Indices
+    def _by_order(values, order):
+        present = list(values)
+        ranked = [v for v in order if v in present]
+        rest = sorted([v for v in present if v not in order])
+        return ranked + rest
+
+    _SECTOR_ORDER = [
+        "Technologies de l'information", "Services financiers", "Santé",
+        "Consommation discrétionnaire", "Industrie", "Services de communication",
+        "Consommation de base", "Énergie", "Matériaux", "Services aux collectivités",
+        "Immobilier",
+    ]
+
     sectors_sel = []
     if "sector_fr" in df.columns:
-        secteurs = sorted(df["sector_fr"].dropna().unique().tolist())
+        secteurs = _by_order(df["sector_fr"].dropna().unique().tolist(), _SECTOR_ORDER)
         sectors_sel = st.multiselect("Secteur GICS", secteurs, default=[])
 
-    countries_sel = []
-    countries = sorted(df["country"].unique().tolist())
-    countries_sel = st.multiselect("Pays", countries, default=[])
+    _COUNTRY_ORDER = [
+        "🇺🇸 États-Unis", "🇫🇷 France", "🇩🇪 Allemagne", "🇬🇧 Royaume-Uni",
+        "🇯🇵 Japon", "🇨🇭 Suisse", "🇳🇱 Pays-Bas", "🇮🇹 Italie", "🇪🇸 Espagne",
+        "🇨🇦 Canada", "🇦🇺 Australie", "🇭🇰 Hong Kong", "🇧🇪 Belgique",
+        "🇸🇪 Suède", "🇩🇰 Danemark", "🇫🇮 Finlande", "🇳🇴 Norvège",
+        "🇮🇪 Irlande", "🇵🇹 Portugal", "🇦🇹 Autriche", "🇵🇱 Pologne", "🇬🇷 Grèce",
+    ]
+    _INDEX_ORDER = [
+        "🇺🇸 S&P 500", "🇺🇸 NASDAQ 100", "🇪🇺 STOXX 600", "🇫🇷 CAC 40",
+        "🇩🇪 DAX 40", "🇬🇧 FTSE 100", "🇯🇵 Nikkei 225", "🇭🇰 Hang Seng",
+        "🇨🇦 TSX 60", "🇦🇺 ASX 50", "🇺🇸 S&P 400 Mid", "🇺🇸 S&P 600 Small",
+        "🇫🇷 SBF 120 Mid", "🇫🇷 CAC Mid 60", "🇬🇧 FTSE 250", "🇪🇺 STOXX Mid",
+        "🇩🇪 MDAX", "🇩🇪 TecDAX", "🇫🇷 CAC Small", "🇩🇪 SDAX",
+    ]
 
-    markets_sel = []
-    if "market" in df.columns:
-        markets = sorted(df["market"].dropna().unique().tolist())
-        markets_sel = st.multiselect("Marché d'origine", markets, default=[])
+    countries_sel = []
+    countries = _by_order(df["country"].unique().tolist(), _COUNTRY_ORDER)
+    countries_sel = st.multiselect("Pays", countries, default=[])
 
     index_sel = []
     if "index_name" in df.columns:
-        indices = sorted(df["index_name"].dropna().unique().tolist())
+        indices = _by_order(df["index_name"].dropna().unique().tolist(), _INDEX_ORDER)
         index_sel = st.multiselect("Indice de provenance", indices, default=[],
                                    help="Indice boursier précis (CAC 40, DAX 40, Nikkei...)")
 
@@ -973,6 +997,18 @@ with st.sidebar:
             "Tendance technique",
             ["🟢 Haussier", "🟡 Neutre", "🔴 Baissier"], default=[],
             help="Analyse technique pure (MA 20/50/200 + RSI + MACD) calculée sur 1 an de cours.")
+
+    # Filtre Conseil (recommandation analystes)
+    reco_sel = []
+    if "reco_label" in df.columns:
+        RECO_ORDER = ["Achat fort", "Achat", "Conserver", "Vendre",
+                      "Vente forte", "Sous-performance"]
+        recos_present = [r for r in RECO_ORDER
+                         if r in df["reco_label"].unique().tolist()]
+        if recos_present:
+            reco_sel = st.multiselect(
+                "Conseil", recos_present, default=[],
+                help="Recommandation moyenne des analystes (consensus).")
 
     st.markdown("### 📊 Métriques")
     pot_range = None
@@ -1036,8 +1072,6 @@ if sectors_sel:
     df_f = df_f[df_f["sector_fr"].isin(sectors_sel)]
 if countries_sel:
     df_f = df_f[df_f["country"].isin(countries_sel)]
-if markets_sel and "market" in df_f.columns:
-    df_f = df_f[df_f["market"].isin(markets_sel)]
 if index_sel and "index_name" in df_f.columns:
     df_f = df_f[df_f["index_name"].isin(index_sel)]
 if cap_sel and "market_cap_eur" in df_f.columns:
@@ -1051,6 +1085,8 @@ if trend_sel and "tech_signal" in df_f.columns:
     wanted = [t.split()[-1] for t in trend_sel]  # ["Haussier", ...]
     df_f = df_f[df_f["tech_signal"].apply(
         lambda s: any(w in str(s) for w in wanted))]
+if reco_sel and "reco_label" in df_f.columns:
+    df_f = df_f[df_f["reco_label"].isin(reco_sel)]
 if pot_range and "total_pct" in df_f.columns:
     df_f = df_f[df_f["total_pct"].between(pot_range[0], pot_range[1])]
 if perf_range and "perf_1m" in df_f.columns:
@@ -1207,17 +1243,30 @@ with tab_table:
     price_cols = ["Cours €"]
 
     # Feuilles du classeur
+    def _ranked(sub):
+        """Trie un sous-ensemble par potentiel total (classement) décroissant."""
+        if "total_pct" in sub.columns:
+            sub = sub.sort_values("total_pct", ascending=False)
+        return _prep_export(sub)
+
     sheets_xlsx = {
         "Classement complet": df_export,
-        "Top PEA":  _prep_export(df_show[df_show["pea"] == True]) if "pea" in df_show.columns else None,
-        "Top CTO":  _prep_export(df_show[df_show["pea"] == False]) if "pea" in df_show.columns else None,
+        "Classement PEA": _ranked(df_show[df_show["pea"] == True]) if "pea" in df_show.columns else None,
+        "Classement CTO": _ranked(df_show[df_show["pea"] == False]) if "pea" in df_show.columns else None,
     }
-    # Feuille "Par secteur" : meilleur potentiel par secteur
+    # Feuilles "Par secteur" : meilleur potentiel par secteur, séparé PEA / CTO
     if "sector_fr" in df_show.columns:
-        best_sec = (df_show.dropna(subset=["total_pct"])
+        def _best_per_sector(sub):
+            return (sub.dropna(subset=["total_pct"])
                     .sort_values("total_pct", ascending=False)
                     .drop_duplicates(subset="sector_fr"))
-        sheets_xlsx["Par secteur"] = _prep_export(best_sec)
+        if "pea" in df_show.columns:
+            sheets_xlsx["Par secteur PEA"] = _prep_export(
+                _best_per_sector(df_show[df_show["pea"] == True]))
+            sheets_xlsx["Par secteur CTO"] = _prep_export(
+                _best_per_sector(df_show[df_show["pea"] == False]))
+        else:
+            sheets_xlsx["Par secteur"] = _prep_export(_best_per_sector(df_show))
 
     # Feuille Synthèse : KPIs + top 15
     kpis = {
@@ -1240,7 +1289,7 @@ with tab_table:
                            file_name=f"brief_bourse_{datetime.now():%Y-%m-%d}.xlsx",
                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                            use_container_width=True,
-                           help="Classeur multi-feuilles : Synthèse · Classement · Top PEA · Top CTO · Par secteur")
+                           help="Classeur multi-feuilles : Synthèse · Classement complet · Classement PEA · Classement CTO · Par secteur PEA · Par secteur CTO")
     with c2:
         csv = df_export.to_csv(index=False, sep=";").encode("utf-8-sig")  # ; + BOM = Excel FR friendly
         st.download_button("💾 Télécharger CSV", csv,
