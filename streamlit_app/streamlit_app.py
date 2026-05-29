@@ -9,13 +9,13 @@
   mensuelle, et analyse IA via Claude.
 
   8 onglets :
-    1. 📋 Classement complet  — 1237 actions, consensus + dividende + fourchette
-    2. 🌍 Indices Globaux      — ~15 indices mondiaux live
-    3. 📊 Graphiques agrégés   — scatter, treemap, histogrammes, top 20
-    4. 🔍 Détail Ticker        — fondamental live + chart trading pro + Claude
-    5. ⚖️ Comparateur          — 2-4 actions base 100
-    6. 📈 Évolution            — entrées/sorties + variation de rang
-    7. 📂 Par Secteur          — meilleur PEA vs CTO
+    1. 📋 Classement complet  - 1237 actions, consensus + dividende + fourchette
+    2. 🌍 Indices Globaux      - ~15 indices mondiaux live
+    3. 📊 Graphiques agrégés   - scatter, treemap, histogrammes, top 20
+    4. 🔍 Détail Ticker        - fondamental live + chart trading pro + Claude
+    5. ⚖️ Comparateur          - 2-4 actions base 100
+    6. 📈 Évolution            - entrées/sorties + variation de rang
+    7. 📂 Par Secteur          - meilleur PEA vs CTO
     8. ℹ️ À propos
 
   Déploiement : Streamlit Community Cloud
@@ -100,12 +100,12 @@ GLOBAL_INDICES = {
 
 st.set_page_config(
     page_title="Brief Mensuel Bourse",
-    page_icon="📊",
+    page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
         "Get Help": f"https://github.com/{REPO_OWNER}/{REPO_NAME}",
-        "About": "Brief Mensuel Bourse — Analyse automatisée de +1200 actions PEA & CTO. "
+        "About": "Brief Mensuel Bourse - Analyse automatisée de +1200 actions PEA & CTO. "
                  "Code open-source sur GitHub.",
     },
 )
@@ -222,7 +222,7 @@ def load_xlsx_from_github(url: str = XLSX_URL) -> dict:
         r.raise_for_status()
         return pd.read_excel(BytesIO(r.content), sheet_name=None)
     except requests.HTTPError as e:
-        st.error(f"❌ Erreur HTTP {e.response.status_code} — la release n'existe peut-être pas encore.")
+        st.error(f"❌ Erreur HTTP {e.response.status_code} - la release n'existe peut-être pas encore.")
         return {}
     except Exception as e:
         st.error(f"❌ Erreur de chargement : {e}")
@@ -361,11 +361,11 @@ def get_country_from_ticker(ticker: str) -> str:
 def fmt_large_number(n, currency: str = "€") -> str:
     """Formate un grand nombre : 2.4T€, 850.3B€, 12.5M€."""
     if n is None or (isinstance(n, float) and np.isnan(n)):
-        return "—"
+        return "-"
     try:
         n = float(n)
     except (TypeError, ValueError):
-        return "—"
+        return "-"
     sign = "-" if n < 0 else ""
     n = abs(n)
     if n >= 1e12:
@@ -382,11 +382,11 @@ def fmt_large_number(n, currency: str = "€") -> str:
 def reco_to_stars(reco_mean) -> str:
     """reco_mean yfinance : 1=Strong Buy ... 5=Strong Sell. → étoiles."""
     if reco_mean is None or (isinstance(reco_mean, float) and np.isnan(reco_mean)):
-        return "—"
+        return "-"
     try:
         score = 6 - float(reco_mean)  # 1→5 étoiles, 5→1 étoile
     except (TypeError, ValueError):
-        return "—"
+        return "-"
     full = int(round(score))
     full = max(0, min(5, full))
     return "★" * full + "☆" * (5 - full)
@@ -394,11 +394,11 @@ def reco_to_stars(reco_mean) -> str:
 
 def fmt_pct(v, plus: bool = True) -> str:
     if v is None or (isinstance(v, float) and np.isnan(v)):
-        return "—"
+        return "-"
     try:
         v = float(v)
     except (TypeError, ValueError):
-        return "—"
+        return "-"
     return f"{v:+.1f}%" if plus else f"{v:.2f}%"
 
 
@@ -437,11 +437,11 @@ def build_claude_prompt(row: dict, info: dict | None = None) -> str:
         if ind:  fond += f"\nIndustrie : {ind}"
         if emp:  fond += f"\nEffectif : {emp:,} employés".replace(",", " ")
     if not fond:
-        fond = "\n(Fondamental live indisponible — à compléter par ta recherche web.)"
+        fond = "\n(Fondamental live indisponible - à compléter par ta recherche web.)"
 
-    return f"""Tu es un analyste financier senior, indépendant et rigoureux, spécialisé en actions cotées. Tu produis une analyse d'investissement complète, chiffrée et sans complaisance.
+    return f"""Tu es le meilleur analyste financier du marché, indépendant et rigoureux, spécialisé en actions cotées. Tu produis une analyse d'investissement complète, chiffrée et sans complaisance.
 
-⚠️ IMPORTANT — UTILISE TES OUTILS DE RECHERCHE WEB. Les données ci-dessous sont une photo figée. AVANT de rédiger, recherche sur le web les informations à jour suivantes :
+⚠️ IMPORTANT - UTILISE TES OUTILS DE RECHERCHE WEB. Les données ci-dessous sont une photo figée. AVANT de rédiger, recherche sur le web les informations à jour suivantes :
 • Les DERNIERS résultats trimestriels/annuels publiés (chiffre d'affaires, BPA, marges, guidance)
 • Les actualités récentes (3-6 derniers mois) : annonces, contrats, rachats, litiges, changements de direction
 • Les révisions récentes de recommandations/objectifs d'analystes
@@ -450,7 +450,7 @@ def build_claude_prompt(row: dict, info: dict | None = None) -> str:
 Croise systématiquement ces données fraîches avec les chiffres figés ci-dessous (ils peuvent dater).
 
 ═══════════════════════════════════
-DONNÉES (photo figée — à actualiser par recherche)
+DONNÉES (photo figée - à actualiser par recherche)
 ═══════════════════════════════════
 Société : {row.get('name', '')} ({row['ticker']})
 Secteur : {row.get('sector_fr', '')}
@@ -467,15 +467,15 @@ Potentiel total (cible + dividende) : {fmt_pct(row.get('total_pct'))}{fond}
 ═══════════════════════════════════
 STRUCTURE DE TA RÉPONSE (en français, détaillée)
 ═══════════════════════════════════
-**1. L'entreprise** — Activité, modèle économique, marchés, position concurrentielle, avantages compétitifs (moat). 4-6 lignes.
+**1. L'entreprise** - Activité, modèle économique, marchés, position concurrentielle, avantages compétitifs (moat). 4-6 lignes.
 
-**2. Actualité récente** (issue de ta recherche web) — Derniers résultats publiés, guidance, news marquantes, dynamique récente. Cite les chiffres clés et leur date.
+**2. Actualité récente** (issue de ta recherche web) - Derniers résultats publiés, guidance, news marquantes, dynamique récente. Cite les chiffres clés et leur date.
 
-**3. Lecture des chiffres** — Valorisation (PER/PB vs secteur et historique : cher ou bon marché ?), croissance, rentabilité/marges, santé financière (dette, cash-flow), momentum, ce que dit (et ne dit pas) le consensus.
+**3. Lecture des chiffres** - Valorisation (PER/PB vs secteur et historique : cher ou bon marché ?), croissance, rentabilité/marges, santé financière (dette, cash-flow), momentum, ce que dit (et ne dit pas) le consensus.
 
-**4. Thèse haussière vs baissière** — 3 arguments solides de chaque côté, hiérarchisés par importance.
+**4. Thèse haussière vs baissière** - 3 arguments solides de chaque côté, hiérarchisés par importance.
 
-**5. NOTATION MULTI-CRITÈRES** — Note chaque critère de 0 à 10 et justifie en 1 ligne :
+**5. NOTATION MULTI-CRITÈRES** - Note chaque critère de 0 à 10 et justifie en 1 ligne :
    • 💰 Valorisation (cher/pas cher vs valeur réelle)
    • 📈 Croissance (CA, BPA, perspectives)
    • 🏆 Qualité / rentabilité (marges, ROE, moat)
@@ -486,9 +486,9 @@ STRUCTURE DE TA RÉPONSE (en français, détaillée)
    • ⚠️ Risque (inversé : 10 = peu risqué)
    Puis donne une **NOTE GLOBALE PONDÉRÉE /10** avec une phrase de synthèse.
 
-**6. Profil & risques** — À quel type d'investisseur ce titre convient (prudent / équilibré / dynamique ; horizon ; PEA ou CTO) ? Quels sont les 2-3 risques majeurs à surveiller ?
+**6. Profil & risques** - À quel type d'investisseur ce titre convient (prudent / équilibré / dynamique ; horizon ; PEA ou CTO) ? Quels sont les 2-3 risques majeurs à surveiller ?
 
-**7. Conclusion** — Synthèse actionnable en 3-4 lignes : l'essentiel à retenir.
+**7. Conclusion** - Synthèse actionnable en 3-4 lignes : l'essentiel à retenir.
 
 ⚠️ Termine en précisant clairement que ceci n'est PAS un conseil en investissement, que l'analyse peut contenir des erreurs, et que tout investissement comporte un risque de perte en capital. L'investisseur doit faire ses propres recherches."""
 
@@ -583,7 +583,7 @@ def make_styled_excel(df_export: pd.DataFrame, pct_cols: list, price_cols: list,
 def build_technical_summary(hist: pd.DataFrame) -> dict:
     """
     Analyse les indicateurs techniques et génère une lecture en langage naturel.
-    100% descriptif/factuel — JAMAIS un conseil d'achat/vente.
+    100% descriptif/factuel - JAMAIS un conseil d'achat/vente.
 
     Returns dict:
       - verdict   : phrase de synthèse globale
@@ -717,7 +717,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown(f"# 📊 Brief Mensuel <span style='color:{COLORS['blue']}'>Bourse.</span>",
+st.markdown(f"# 📈 Brief Mensuel <span style='color:{COLORS['blue']}'>Bourse.</span>",
             unsafe_allow_html=True)
 st.markdown(f"<p style='color:{COLORS['text_mid']}; font-size:15px;'>"
             f"+1200 actions analysées · PEA & CTO · Consensus analystes & dividendes · "
@@ -1161,7 +1161,7 @@ with tab_ticker:
             def _fmt_ticker(t):
                 r = df_f[df_f["ticker"] == t].iloc[0]
                 pot = r.get("total_pct")
-                pot_s = f"{pot:+.1f}%" if pd.notna(pot) else "—"
+                pot_s = f"{pot:+.1f}%" if pd.notna(pot) else "-"
                 return f"{t} · {r['name']} · 🎯 {pot_s}"
             ticker_sel = st.selectbox(
                 "Choisis une action (triée par potentiel décroissant)", tickers_sorted,
@@ -1182,7 +1182,7 @@ with tab_ticker:
             f"<span style='color:{COLORS['text_mid']}'>"
             f"{get_country_from_ticker(ticker_sel)} · {row.get('sector_fr', '-')} · "
             f"{'✅ Éligible PEA' if row.get('pea') else '🌍 CTO uniquement'} · "
-            f"ISIN {row.get('isin') or '—'}</span>",
+            f"ISIN {row.get('isin') or '-'}</span>",
             unsafe_allow_html=True,
         )
 
@@ -1197,7 +1197,7 @@ with tab_ticker:
 
         st.markdown(
             f"**Consensus** : {reco_to_stars(row.get('reco_mean'))} "
-            f"· {row.get('reco_label', '—')} "
+            f"· {row.get('reco_label', '-')} "
             f"· {int(row.get('analyst_count', 0) or 0)} analystes "
             f"· fourchette {fmt_pct(row.get('target_low_pct'))} → {fmt_pct(row.get('target_high_pct'))}"
         )
@@ -1219,21 +1219,21 @@ with tab_ticker:
             f1, f2, f3, f4 = st.columns(4)
             f1.metric("Capitalisation", fmt_large_number(info.get("marketCap"), ""))
             pe = info.get("trailingPE")
-            f2.metric("PER (trailing)", f"{pe:.1f}" if pe else "—")
+            f2.metric("PER (trailing)", f"{pe:.1f}" if pe else "-")
             fpe = info.get("forwardPE")
-            f3.metric("PER (forward)", f"{fpe:.1f}" if fpe else "—")
+            f3.metric("PER (forward)", f"{fpe:.1f}" if fpe else "-")
             beta = info.get("beta")
-            f4.metric("Beta", f"{beta:.2f}" if beta else "—")
+            f4.metric("Beta", f"{beta:.2f}" if beta else "-")
 
             g1, g2, g3, g4 = st.columns(4)
             pb = info.get("priceToBook")
-            g1.metric("Price / Book", f"{pb:.2f}" if pb else "—")
+            g1.metric("Price / Book", f"{pb:.2f}" if pb else "-")
             w52h = info.get("fiftyTwoWeekHigh")
-            g2.metric("Haut 52 sem.", f"{w52h:.2f}" if w52h else "—")
+            g2.metric("Haut 52 sem.", f"{w52h:.2f}" if w52h else "-")
             w52l = info.get("fiftyTwoWeekLow")
-            g3.metric("Bas 52 sem.", f"{w52l:.2f}" if w52l else "—")
+            g3.metric("Bas 52 sem.", f"{w52l:.2f}" if w52l else "-")
             emp = info.get("fullTimeEmployees")
-            g4.metric("Employés", f"{emp:,}".replace(",", " ") if emp else "—")
+            g4.metric("Employés", f"{emp:,}".replace(",", " ") if emp else "-")
 
             industry = info.get("industry")
             website = info.get("website")
@@ -1441,7 +1441,7 @@ with tab_ticker:
                     unsafe_allow_html=True,
                 )
 
-            st.caption("⚠️ Lecture automatique des indicateurs à titre informatif — ce n'est PAS un "
+            st.caption("⚠️ Lecture automatique des indicateurs à titre informatif - ce n'est PAS un "
                        "conseil en investissement. Les indicateurs techniques décrivent le passé récent, "
                        "pas l'avenir. Risque de perte en capital.")
 
@@ -1540,7 +1540,7 @@ with tab_evol:
     snap_prev = load_snapshot(prev_in)
 
     if snap_cur.empty and snap_prev.empty:
-        st.warning("⚠️ Aucun snapshot trouvé pour ces mois. Les snapshots s'accumulent au fil des mois — "
+        st.warning("⚠️ Aucun snapshot trouvé pour ces mois. Les snapshots s'accumulent au fil des mois - "
                    "reviens après plusieurs briefs pour voir l'évolution.")
     elif snap_prev.empty:
         st.info(f"📊 Snapshot {cur_in} trouvé ({len(snap_cur)} actions), mais pas {prev_in}. "
@@ -1610,9 +1610,9 @@ with tab_sectors:
         bc = d[d["pea"] == False].nlargest(1, "total_pct")
         rows_al.append({
             "Secteur": sec,
-            "PEA": f"{bp.iloc[0]['name']} · {bp.iloc[0]['ticker']} ({bp.iloc[0]['total_pct']:+.1f}%)" if not bp.empty else "—",
+            "PEA": f"{bp.iloc[0]['name']} · {bp.iloc[0]['ticker']} ({bp.iloc[0]['total_pct']:+.1f}%)" if not bp.empty else "-",
             "PEA score": bp.iloc[0]["total_pct"] if not bp.empty else None,
-            "CTO": f"{bc.iloc[0]['name']} · {bc.iloc[0]['ticker']} ({bc.iloc[0]['total_pct']:+.1f}%)" if not bc.empty else "—",
+            "CTO": f"{bc.iloc[0]['name']} · {bc.iloc[0]['ticker']} ({bc.iloc[0]['total_pct']:+.1f}%)" if not bc.empty else "-",
             "CTO score": bc.iloc[0]["total_pct"] if not bc.empty else None,
         })
     dal = pd.DataFrame(rows_al)
@@ -1647,7 +1647,7 @@ with tab_sectors:
 # ─────────────────────────────────────────────────────────────────────
 with tab_about:
     st.markdown(f"""
-### 📊 Brief Mensuel Bourse — Le produit d'analyse de marché
+### 📊 Brief Mensuel Bourse - Le produit d'analyse de marché
 
 Application compagnon du **Brief Mensuel** publié chaque mois sur LinkedIn.
 Explore librement les **+1200 actions** analysées : consensus analystes, dividendes,
@@ -1680,7 +1680,7 @@ indices mondiaux, analyse technique pro et analyse IA.
 
 ### ⚠️ Disclaimer
 
-Données issues de Yahoo Finance — **aucun conseil en investissement**. L'investissement en
+Données issues de Yahoo Finance - **aucun conseil en investissement**. L'investissement en
 bourse comporte un **risque de perte en capital**. Les performances passées ne préjugent pas
 des performances futures. Fais tes propres recherches.
 
