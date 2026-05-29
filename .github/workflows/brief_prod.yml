@@ -15,6 +15,10 @@
 #  + WIG20 + ASE + Nikkei + TSX60 + ASX50 + HSI).
 #
 #  Durée typique : 20-30 min fetch/encodage + 30-90 min sleep = 1h-2h.
+#
+#  🆕 En fin de pipeline : publication d'une GitHub Release "latest" avec
+#     ranking_latest.xlsx → consommé par la web app Streamlit
+#     (https://brief-mensuel-bourse.streamlit.app).
 # ═══════════════════════════════════════════════════════════════════════
 name: "🚀 Brief Mensuel — PROD"
 
@@ -112,6 +116,59 @@ jobs:
             out/
             snapshots/
           retention-days: 30
+
+      # ═══════════════════════════════════════════════════════════════════
+      # 🆕 RELEASE GITHUB pour la web app Streamlit
+      # ───────────────────────────────────────────────────────────────────
+      # On copie l'xlsx daté (ranking_YYYY-MM-DD.xlsx) vers un nom FIXE
+      # (ranking_latest.xlsx) que la web app Streamlit peut cibler via une
+      # URL stable : releases/latest/download/ranking_latest.xlsx
+      #
+      # ⚠️ Skip en mode TEST (on ne veut pas écraser la release prod avec des
+      #    données de test à 50 tickers).
+      # ═══════════════════════════════════════════════════════════════════
+      - name: Prepare xlsx for Streamlit app
+        if: success() && (github.event.inputs.test_mode || 'false') != 'true'
+        run: |
+          # En prod, l'xlsx n'a pas de suffixe _test → on cible ranking_2026-XX-XX.xlsx
+          # (on exclut explicitement les éventuels *_test.xlsx par sécurité)
+          XLSX=$(ls out/ranking_*.xlsx 2>/dev/null | grep -v "_test" | head -1)
+          if [ -z "$XLSX" ]; then
+            echo "⚠️ Aucun xlsx prod trouvé (probablement jour non publiable) → skip release"
+            echo "skip_release=true" >> $GITHUB_ENV
+          else
+            cp "$XLSX" out/ranking_latest.xlsx
+            echo "✅ Copié $XLSX → out/ranking_latest.xlsx"
+            ls -lh out/ranking_latest.xlsx
+            echo "skip_release=false" >> $GITHUB_ENV
+          fi
+
+      - name: Publish GitHub Release (latest)
+        if: success() && env.skip_release != 'true' && (github.event.inputs.test_mode || 'false') != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Brief Mensuel — Dernier classement"
+          files: out/ranking_latest.xlsx
+          body: |
+            ## 📊 Brief Mensuel Bourse — Classement complet
+
+            Mise à jour automatique du dernier brief mensuel.
+
+            🌐 **Web app filtrable** : https://brief-mensuel-bourse.streamlit.app
+            📦 **Code source** : https://github.com/${{ github.repository }}
+            💼 **Post LinkedIn** : https://www.linkedin.com/in/romain-taugourdeau/recent-activity/all/
+
+            Filtres dispo dans l'app : PEA/CTO, secteur GICS, pays, sliders potentiel/perf, couverture analystes.
+
+            ⚠️ Risque de perte en capital. Ceci n'est pas un conseil en investissement.
+          make_latest: true
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # ═══════════════════════════════════════════════════════════════════
+      # FIN du bloc Release GitHub
+      # ═══════════════════════════════════════════════════════════════════
 
       - name: Commit snapshots (mensuels)
         if: success()
