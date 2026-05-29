@@ -415,7 +415,7 @@ def color_for_pct(v) -> str:
 def trend_signal(row: dict) -> tuple[str, str]:
     """
     Signal de tendance SIMPLE pour le tableau (momentum + consensus + potentiel).
-    ⚠️ Ce n'est PAS un signal technique complet (RSI/MACD/MA) — celui-là est
+    ⚠️ Ce n'est PAS un signal technique complet (RSI/MACD/MA) - celui-là est
     dans l'onglet Détail Ticker. Ici on combine les données déjà dispo dans l'Excel.
     Retourne (emoji, label).
     """
@@ -624,7 +624,7 @@ def _write_synthesis_sheet(ws, kpis: dict, top_df: pd.DataFrame, pct_cols: list,
 
     # Bandeau titre (lignes 1-2)
     ws.merge_cells("A1:F1")
-    c = ws.cell(row=1, column=1, value="BRIEF MENSUEL BOURSE — Synthèse")
+    c = ws.cell(row=1, column=1, value="BRIEF MENSUEL BOURSE - Synthèse")
     c.fill = title_fill; c.font = title_font
     c.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[1].height = 28
@@ -1971,7 +1971,7 @@ with tab_alloc:
         )
 
     st.markdown("---")
-    st.markdown("#### 🎲 Ta poche FUN — suggestions depuis ton classement filtré")
+    st.markdown("#### 🎲 Ta poche FUN - suggestions depuis ton classement filtré")
     fun_elig = st.radio("Éligibilité de la poche FUN", ["Tout", "PEA uniquement", "CTO uniquement"],
                         horizontal=True)
     montant_par_ligne = montant_fun / n_fun if n_fun else 0
@@ -2011,7 +2011,7 @@ with tab_alloc:
             st.caption(f"ℹ️ Seulement {len(fun_picks)} secteurs disponibles dans ta sélection "
                        f"(tu as demandé {n_fun} lignes). Élargis les filtres pour plus de diversité.")
 
-    st.caption("⚠️ Simulateur pédagogique — ce n'est pas un conseil en investissement. "
+    st.caption("⚠️ Simulateur pédagogique - ce n'est pas un conseil en investissement. "
                "Les montants sont indicatifs, à adapter à ta situation. Risque de perte en capital.")
 
 
