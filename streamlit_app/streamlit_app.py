@@ -1063,6 +1063,19 @@ with tab_indices:
     if idx_df.empty:
         st.warning("⚠️ Impossible de charger les indices (rate-limit Yahoo). Réessaie dans quelques minutes.")
     else:
+        # ── Tri ─────────────────────────────────────────────────────
+        idx_sort_options = {
+            "Performance 1 mois ↓": ("perf_month", False),
+            "Performance jour ↓":   ("perf_day", False),
+            "Performance 1 an ↓":   ("perf_year", False),
+            "Performance 1 mois ↑": ("perf_month", True),
+            "Ordre géographique":   (None, None),
+        }
+        idx_sort_choice = st.selectbox("Trier les indices par", list(idx_sort_options.keys()))
+        idx_col, idx_asc = idx_sort_options[idx_sort_choice]
+        if idx_col:
+            idx_df = idx_df.sort_values(idx_col, ascending=idx_asc, na_position="last").reset_index(drop=True)
+
         # Cartes en grille 3 colonnes
         n_cols = 3
         rows_data = idx_df.to_dict("records")
@@ -1233,21 +1246,28 @@ with tab_ticker:
             f"· {int(row.get('analyst_count', 0) or 0)} analystes "
             f"· fourchette {fmt_pct(row.get('target_low_pct'))} → {fmt_pct(row.get('target_high_pct'))}"
         )
-        with st.expander("❓ C'est quoi le « consensus analystes » ?"):
+        with st.expander("❓ C'est quoi le « consensus analystes » et comment c'est calculé ?"):
             st.markdown(
-                "Le **consensus** résume l'avis des analystes financiers professionnels (banques, "
-                "brokers) qui suivent cette action :\n\n"
-                "- **★ La note** : moyenne de leurs recommandations. 5★ = ils conseillent fortement "
-                "d'acheter, 1★ = ils conseillent de vendre. Le libellé (« Achat fort », « Conserver »...) "
-                "traduit cette moyenne.\n"
-                "- **Cible 12M** : l'objectif de cours moyen visé sous ~12 mois, exprimé en écart vs le "
-                "cours actuel. Ex : +20% = ils pensent que l'action vaudra 20% de plus dans 1 an.\n"
-                "- **Fourchette** : l'objectif le plus pessimiste → le plus optimiste parmi les analystes. "
-                "Plus elle est large, plus les avis divergent (= plus d'incertitude).\n"
-                "- **Nombre d'analystes** : combien suivent le titre. Plus il y en a, plus le consensus est "
-                "fiable. 1-2 analystes = à prendre avec prudence.\n\n"
-                "⚠️ Le consensus reflète une **opinion de marché**, pas une vérité : les analystes se "
-                "trompent souvent, surtout sur les petites valeurs."
+                "Le **consensus** agrège l'avis des analystes financiers professionnels (banques, "
+                "brokers) qui suivent l'action, via les données Yahoo Finance. Voici **comment chaque "
+                "chiffre est calculé** :\n\n"
+                "- **★ La note** : basée sur `recommendationMean` de Yahoo = la **moyenne des notes** "
+                "des analystes, sur une échelle 1 à 5 (1 = achat fort, 5 = vente forte). On la convertit "
+                "en étoiles avec la formule `6 − note` → une moyenne de 1 donne 5★, une moyenne de 5 "
+                "donne 1★. Le libellé (« Achat fort », « Conserver »...) traduit cette moyenne.\n"
+                "- **Cible 12M** : `(cible − cours actuel) / cours actuel × 100`. La « cible » est le "
+                "**prix-objectif médian** des analystes à ~12 mois (`targetMedianPrice`). Ex : cours 100€, "
+                "cible médiane 120€ → +20%.\n"
+                "- **Fourchette** : même calcul mais avec le prix-objectif **le plus haut** "
+                "(`targetHighPrice`, l'analyste le plus optimiste) et **le plus bas** (`targetLowPrice`, "
+                "le plus pessimiste). Plus elle est large, plus les avis divergent.\n"
+                "- **Dividende** : `dividende annuel / cours × 100` = le rendement du dividende.\n"
+                "- **Potentiel total** : `Cible 12M + Dividende`. C'est le gain total espéré sur ~1 an "
+                "(plus-value visée + dividende encaissé). C'est sur cette valeur qu'est fait le classement.\n"
+                "- **Nombre d'analystes** (`numberOfAnalystOpinions`) : combien suivent le titre. Plus il "
+                "y en a, plus le consensus est robuste. 1-2 analystes = à prendre avec prudence.\n\n"
+                "⚠️ Le consensus est une **opinion de marché**, pas une vérité : les analystes se trompent "
+                "souvent, surtout sur les petites valeurs et sur 12 mois."
             )
 
         # ── SIGNAL DE TENDANCE PRINCIPAL (technique, live) ──────────
