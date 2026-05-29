@@ -1561,7 +1561,7 @@ with tab_ticker:
         st.markdown(f"#### 📈 Analyse technique sur {period_sel}")
         indicators = st.multiselect(
             "Indicateurs à afficher",
-            ["Chandeliers", "Moyennes mobiles", "Bollinger", "Volume", "RSI", "MACD"],
+            ["Chandeliers", "Moyennes mobiles", "Bollinger", "Régression", "Volume", "RSI", "MACD"],
             default=["Chandeliers", "Moyennes mobiles", "Bollinger", "Volume", "RSI"],
         )
 
@@ -1624,6 +1624,35 @@ with tab_ticker:
                                          fill="tonexty", fillcolor="rgba(180,124,255,0.08)"),
                               row=row_idx["price"], col=1)
 
+            # --- RÉGRESSION LINÉAIRE (tendance de fond + projection naïve) ---
+            reg_slope_annual = None
+            if "Régression" in indicators:
+                cl = close.dropna()
+                if len(cl) >= 10:
+                    x = np.arange(len(cl))
+                    # Régression sur le log des cours → pente = taux de croissance
+                    y = np.log(cl.values)
+                    a, b = np.polyfit(x, y, 1)  # y ≈ a*x + b
+                    fit_line = np.exp(a * x + b)
+                    fig.add_trace(go.Scatter(
+                        x=cl.index, y=fit_line, name="Tendance (régression)",
+                        line=dict(color=COLORS["gold"], width=2),
+                    ), row=row_idx["price"], col=1)
+
+                    # Projection : on prolonge de ~25% de la durée observée
+                    n_proj = max(5, len(cl) // 4)
+                    freq = (cl.index[-1] - cl.index[0]) / max(1, len(cl) - 1)
+                    future_idx = [cl.index[-1] + freq * (k + 1) for k in range(n_proj)]
+                    x_future = np.arange(len(cl), len(cl) + n_proj)
+                    proj = np.exp(a * x_future + b)
+                    fig.add_trace(go.Scatter(
+                        x=future_idx, y=proj, name="Projection naïve",
+                        line=dict(color=COLORS["gold"], width=1.5, dash="dash"),
+                    ), row=row_idx["price"], col=1)
+
+                    # Pente annualisée (jours de bourse ≈ 252/an)
+                    reg_slope_annual = (np.exp(a * 252) - 1) * 100
+
             # --- VOLUME ---
             if show_vol:
                 vol_colors = [COLORS["green"] if close.iloc[i] >= close.iloc[i-1] else COLORS["red"]
@@ -1678,6 +1707,20 @@ with tab_ticker:
                 fig.update_yaxes(title_text="MACD", row=row_idx["macd"], col=1)
 
             st.plotly_chart(fig, use_container_width=True)
+
+            if reg_slope_annual is not None:
+                pente_clr = COLORS["green"] if reg_slope_annual >= 0 else COLORS["red"]
+                st.markdown(
+                    f"<div style='background:{COLORS['bg_panel']}; border-left:4px solid {COLORS['gold']}; "
+                    f"padding:12px 18px; border-radius:4px; margin-bottom:12px;'>"
+                    f"<span style='color:{COLORS['gold']}; font-weight:700;'>📐 Tendance de fond (régression)</span> : "
+                    f"pente annualisée <span style='color:{pente_clr}; font-weight:800;'>{reg_slope_annual:+.1f}%/an</span>. "
+                    f"<span style='color:{COLORS['text_mid']}; font-size:13px;'>"
+                    f"La projection en pointillé prolonge cette droite — c'est une <b>extrapolation naïve</b> "
+                    f"(« si la tendance passée continuait à l'identique »), <b>pas une prévision</b>. "
+                    f"Les cours réels ne suivent jamais une droite.</span></div>",
+                    unsafe_allow_html=True,
+                )
 
             # Stats résumé + interprétation
             s1, s2, s3, s4 = st.columns(4)
