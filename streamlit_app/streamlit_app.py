@@ -100,7 +100,7 @@ GLOBAL_INDICES = {
 
 st.set_page_config(
     page_title="Brief Mensuel Bourse",
-    page_icon="📊",
+    page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
@@ -409,25 +409,89 @@ def color_for_pct(v) -> str:
 
 
 def build_claude_prompt(row: dict, info: dict | None = None) -> str:
-    """Prompt Claude enrichi avec fondamental live si disponible."""
-    pea_str = "Oui ✅" if row.get("pea") else "Non ❌"
+def build_claude_prompt(row: dict, info: dict | None = None) -> str:
+    """Prompt Claude PRO : recherche web forcée + analyse détaillée + notation multi-critères."""
+    pea_str = "Oui ✅ (éligible PEA)" if row.get("pea") else "Non ❌ (CTO uniquement)"
     country = get_country_from_ticker(row["ticker"])
     div = row.get("div_pct", 0) or 0
-    div_str = f"{div:.2f}%" if div else "0% (pas de dividende)"
+    div_str = f"{div:.2f}%" if div else "0% (ne verse pas de dividende)"
 
+    # ── Fondamental live enrichi ─────────────────────────────────────
     fond = ""
     if info:
-        mc = info.get("marketCap")
-        pe = info.get("trailingPE")
-        fpe = info.get("forwardPE")
+        mc   = info.get("marketCap")
+        pe   = info.get("trailingPE")
+        fpe  = info.get("forwardPE")
         beta = info.get("beta")
-        if mc:   fond += f"\nCapitalisation : {fmt_large_number(mc, '')}"
+        pb   = info.get("priceToBook")
+        w52h = info.get("fiftyTwoWeekHigh")
+        w52l = info.get("fiftyTwoWeekLow")
+        emp  = info.get("fullTimeEmployees")
+        ind  = info.get("industry")
+        if mc:   fond += f"\nCapitalisation boursière : {fmt_large_number(mc, '')}"
         if pe:   fond += f"\nPER (trailing) : {pe:.1f}"
-        if fpe:  fond += f"\nPER (forward) : {fpe:.1f}"
-        if beta: fond += f"\nBeta : {beta:.2f}"
+        if fpe:  fond += f"\nPER (forward / anticipé) : {fpe:.1f}"
+        if pb:   fond += f"\nPrice / Book : {pb:.2f}"
+        if beta: fond += f"\nBeta (volatilité vs marché) : {beta:.2f}"
+        if w52h: fond += f"\nPlus haut 52 sem. : {w52h:.2f} {row.get('currency','')}"
+        if w52l: fond += f"\nPlus bas 52 sem. : {w52l:.2f} {row.get('currency','')}"
+        if ind:  fond += f"\nIndustrie : {ind}"
+        if emp:  fond += f"\nEffectif : {emp:,} employés".replace(",", " ")
+    if not fond:
+        fond = "\n(Fondamental live indisponible — à compléter par ta recherche web.)"
 
-    return f"""Tu es un analyste financier indépendant. Analyse l'action suivante en français, de manière concise et actionnable (~300 mots) :
+    return f"""Tu es un analyste financier senior, indépendant et rigoureux, spécialisé en actions cotées. Tu produis une analyse d'investissement complète, chiffrée et sans complaisance.
 
+⚠️ IMPORTANT — UTILISE TES OUTILS DE RECHERCHE WEB. Les données ci-dessous sont une photo figée. AVANT de rédiger, recherche sur le web les informations à jour suivantes :
+- Les DERNIERS résultats trimestriels/annuels publiés (chiffre d'affaires, BPA, marges, guidance)
+- Les actualités récentes (3-6 derniers mois) : annonces, contrats, rachats, litiges, changements de direction
+- Les révisions récentes de recommandations/objectifs d'analystes
+- La position concurrentielle et les tendances de son secteur
+- Tout risque réglementaire, macro ou spécifique récent
+Croise systématiquement ces données fraîches avec les chiffres figés ci-dessous (ils peuvent dater).
+
+═══════════════════════════════════
+DONNÉES (photo figée — à actualiser par recherche)
+═══════════════════════════════════
+Société : {row.get('name', '')} ({row['ticker']})
+Secteur : {row.get('sector_fr', '')}
+Pays / Marché : {country}
+Éligibilité PEA : {pea_str}
+─────
+Cours : {row.get('price_eur', '?')}€ (natif {row.get('price', '?')} {row.get('currency', '')})
+Consensus analystes : cible 12 mois {fmt_pct(row.get('target_pct'))} · {row.get('reco_label', '-')} · {int(row.get('analyst_count', 0) or 0)} analystes
+Fourchette des objectifs : bas {fmt_pct(row.get('target_low_pct'))} / haut {fmt_pct(row.get('target_high_pct'))}
+Dividende : {div_str}
+Performance mois précédent : {fmt_pct(row.get('perf_1m'))}
+Potentiel total (cible + dividende) : {fmt_pct(row.get('total_pct'))}{fond}
+
+═══════════════════════════════════
+STRUCTURE DE TA RÉPONSE (en français, détaillée)
+═══════════════════════════════════
+**1. L'entreprise** — Activité, modèle économique, marchés, position concurrentielle, avantages compétitifs (moat). 4-6 lignes.
+
+**2. Actualité récente** (issue de ta recherche web) — Derniers résultats publiés, guidance, news marquantes, dynamique récente. Cite les chiffres clés et leur date.
+
+**3. Lecture des chiffres** — Valorisation (PER/PB vs secteur et historique : cher ou bon marché ?), croissance, rentabilité/marges, santé financière (dette, cash-flow), momentum, ce que dit (et ne dit pas) le consensus.
+
+**4. Thèse haussière vs baissière** — 3 arguments solides de chaque côté, hiérarchisés par importance.
+
+**5. NOTATION MULTI-CRITÈRES** — Note chaque critère de 0 à 10 et justifie en 1 ligne :
+   • 💰 Valorisation (cher/pas cher vs valeur réelle)
+   • 📈 Croissance (CA, BPA, perspectives)
+   • 🏆 Qualité / rentabilité (marges, ROE, moat)
+   • 🩺 Santé financière (dette, trésorerie, cash-flow)
+   • ⚡ Momentum (tendance de cours + dynamique récente)
+   • 👥 Consensus analystes (force et fiabilité)
+   • 💶 Rendement (dividende + politique de retour)
+   • ⚠️ Risque (inversé : 10 = peu risqué)
+   Puis donne une **NOTE GLOBALE PONDÉRÉE /10** avec une phrase de synthèse.
+
+**6. Profil & risques** — À quel type d'investisseur ce titre convient (prudent / équilibré / dynamique ; horizon ; PEA ou CTO) ? Quels sont les 2-3 risques majeurs à surveiller ?
+
+**7. Conclusion** — Synthèse actionnable en 3-4 lignes : l'essentiel à retenir.
+
+⚠️ Termine en précisant clairement que ceci n'est PAS un conseil en investissement, que l'analyse peut contenir des erreurs, et que tout investissement comporte un risque de perte en capital. L'investisseur doit faire ses propres recherches."""
 Ticker : {row['ticker']}
 Nom : {row.get('name', '')}
 Secteur : {row.get('sector_fr', '')}
@@ -445,7 +509,7 @@ Structure ta réponse en 4 sections :
 1. **L'entreprise en 3 lignes** (activité, marché, position concurrentielle)
 2. **Lecture des chiffres** (que disent les analystes ? le momentum ? la valorisation ?)
 3. **Thèse haussière vs baissière** (2 arguments chacun)
-4. **Conclusion** (à qui s'adresse ce titre ? quels risques majeurs ?)
+4. **Conclusion et n ote sur 10** (à qui s'adresse ce titre ? quels risques majeurs ?)
 
 ⚠️ Précise que ce n'est PAS un conseil en investissement (risque de perte en capital)."""
 
@@ -674,7 +738,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown(f"# 📊 Brief Mensuel <span style='color:{COLORS['blue']}'>Bourse.</span>",
+st.markdown(f"# 📈 Brief Mensuel <span style='color:{COLORS['blue']}'>Bourse.</span>",
             unsafe_allow_html=True)
 st.markdown(f"<p style='color:{COLORS['text_mid']}; font-size:15px;'>"
             f"+1200 actions analysées · PEA & CTO · Consensus analystes & dividendes · "
