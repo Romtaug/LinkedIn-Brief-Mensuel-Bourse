@@ -415,7 +415,7 @@ def color_for_pct(v) -> str:
 def trend_signal(row: dict) -> tuple[str, str]:
     """
     Signal de tendance SIMPLE pour le tableau (momentum + consensus + potentiel).
-    ⚠️ Ce n'est PAS un signal technique complet (RSI/MACD/MA) - celui-là est
+    ⚠️ Ce n'est PAS un signal technique complet (RSI/MACD/MA) — celui-là est
     dans l'onglet Détail Ticker. Ici on combine les données déjà dispo dans l'Excel.
     Retourne (emoji, label).
     """
@@ -604,7 +604,7 @@ def _write_styled_sheet(ws, df_export: pd.DataFrame, pct_cols: list, price_cols:
         max_len = len(str(h))
         for v in df_export[h].head(200):
             max_len = max(max_len, len(str(v)) if v is not None else 0)
-        ws.column_dimensions[get_column_letter(c)].width = min(max(max_len + 6, 10), 45)
+        ws.column_dimensions[get_column_letter(c)].width = min(max(max_len + 5, 10), 45)
 
     ws.freeze_panes = "A2"
     if n_rows > 0:
@@ -624,7 +624,7 @@ def _write_synthesis_sheet(ws, kpis: dict, top_df: pd.DataFrame, pct_cols: list,
 
     # Bandeau titre (lignes 1-2)
     ws.merge_cells("A1:F1")
-    c = ws.cell(row=1, column=1, value="BRIEF MENSUEL BOURSE - Synthèse")
+    c = ws.cell(row=1, column=1, value="BRIEF MENSUEL BOURSE — Synthèse")
     c.fill = title_fill; c.font = title_font
     c.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[1].height = 28
@@ -1124,8 +1124,12 @@ with tab_table:
     if "market_cap_eur" in df_show.columns:
         df_show["cap_mde"] = df_show["market_cap_eur"] / 1e9
 
-    # Colonne signal de tendance (momentum + consensus + potentiel)
-    df_show["signal"] = df_show.apply(lambda r: " ".join(trend_signal(r.to_dict())), axis=1)
+    # Colonne Tendance technique (calculée dans le pipeline → colonne tech_signal).
+    # Fallback sur le signal composite (trend_signal) si la colonne n'existe pas encore.
+    if "tech_signal" in df_show.columns:
+        df_show["signal"] = df_show["tech_signal"]
+    else:
+        df_show["signal"] = df_show.apply(lambda r: " ".join(trend_signal(r.to_dict())), axis=1)
 
     cols_show = [c for c in [
         "Rang", "ticker", "name", "stars", "signal", "country", "index_name", "sector_fr", "pea",
@@ -1150,7 +1154,7 @@ with tab_table:
         df_disp, height=620, use_container_width=True, hide_index=True,
         column_config={
             "Note":        st.column_config.TextColumn("Note", help="Consensus analystes (★ = achat)"),
-            "Tendance":    st.column_config.TextColumn("Tendance", help="Signal simple = momentum (perf 1M) + consensus analystes + potentiel. 🟢 Haussier · 🟡 Neutre · 🔴 Prudence. Pour le signal technique complet (RSI/MACD/MA), voir l'onglet Détail Ticker."),
+            "Tendance":    st.column_config.TextColumn("Tendance", help="Signal d'analyse technique pure (moyennes mobiles 20/50/200 + RSI + MACD), calculé sur 1 an de cours. 🟢 Haussier · 🟡 Neutre · 🔴 Baissier. Détail indicateur par indicateur dans l'onglet 🔍 Détail Ticker."),
             "Indice":      st.column_config.TextColumn("Indice", help="Indice boursier de provenance"),
             "PEA":         st.column_config.CheckboxColumn("PEA"),
             "Cours €":     st.column_config.NumberColumn("Cours €", format="%.2f €"),
@@ -1971,7 +1975,7 @@ with tab_alloc:
         )
 
     st.markdown("---")
-    st.markdown("#### 🎲 Ta poche FUN - suggestions depuis ton classement filtré")
+    st.markdown("#### 🎲 Ta poche FUN — suggestions depuis ton classement filtré")
     fun_elig = st.radio("Éligibilité de la poche FUN", ["Tout", "PEA uniquement", "CTO uniquement"],
                         horizontal=True)
     montant_par_ligne = montant_fun / n_fun if n_fun else 0
@@ -2011,7 +2015,7 @@ with tab_alloc:
             st.caption(f"ℹ️ Seulement {len(fun_picks)} secteurs disponibles dans ta sélection "
                        f"(tu as demandé {n_fun} lignes). Élargis les filtres pour plus de diversité.")
 
-    st.caption("⚠️ Simulateur pédagogique - ce n'est pas un conseil en investissement. "
+    st.caption("⚠️ Simulateur pédagogique — ce n'est pas un conseil en investissement. "
                "Les montants sont indicatifs, à adapter à ta situation. Risque de perte en capital.")
 
 
