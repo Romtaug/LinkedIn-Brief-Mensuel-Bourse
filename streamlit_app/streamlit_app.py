@@ -408,6 +408,30 @@ def color_for_pct(v) -> str:
     return COLORS["green"] if v >= 0 else COLORS["red"]
 
 
+def trend_signal(row: dict) -> tuple[str, str]:
+    """
+    Signal de tendance SIMPLE pour le tableau (momentum + consensus + potentiel).
+    ⚠️ Ce n'est PAS un signal technique complet (RSI/MACD/MA) — celui-là est
+    dans l'onglet Détail Ticker. Ici on combine les données déjà dispo dans l'Excel.
+    Retourne (emoji, label).
+    """
+    perf = row.get("perf_1m")
+    reco = row.get("reco_mean")   # 1 = achat fort ... 5 = vente forte
+    pot  = row.get("total_pct")
+    score = 0
+    if perf is not None and pd.notna(perf):
+        score += 1 if perf > 2 else (-1 if perf < -2 else 0)
+    if reco is not None and pd.notna(reco):
+        score += 1 if reco <= 2.2 else (-1 if reco >= 3.2 else 0)
+    if pot is not None and pd.notna(pot):
+        score += 1 if pot > 10 else (-1 if pot < 0 else 0)
+    if score >= 2:
+        return ("🟢", "Haussier")
+    if score <= -1:
+        return ("🔴", "Prudence")
+    return ("🟡", "Neutre")
+
+
 def build_claude_prompt(row: dict, info: dict | None = None) -> str:
     """Prompt Claude PRO : recherche web forcée + analyse détaillée + notation multi-critères."""
     pea_str = "Oui ✅ (éligible PEA)" if row.get("pea") else "Non ❌ (CTO uniquement)"
@@ -952,16 +976,19 @@ with tab_table:
     if "market_cap_eur" in df_show.columns:
         df_show["cap_mde"] = df_show["market_cap_eur"] / 1e9
 
+    # Colonne signal de tendance (momentum + consensus + potentiel)
+    df_show["signal"] = df_show.apply(lambda r: " ".join(trend_signal(r.to_dict())), axis=1)
+
     cols_show = [c for c in [
-        "Rang", "ticker", "name", "stars", "country", "index_name", "sector_fr", "pea",
+        "Rang", "ticker", "name", "stars", "signal", "country", "index_name", "sector_fr", "pea",
         "price_eur", "cap_mde", "perf_1m", "target_pct", "target_low_pct", "target_high_pct",
         "div_pct", "total_pct", "reco_label", "analyst_count",
         "boursorama_link", "yahoo_link",
     ] if c in df_show.columns]
 
     rename = {
-        "ticker": "Ticker", "name": "Nom", "stars": "Note", "country": "Pays",
-        "index_name": "Indice", "sector_fr": "Secteur", "pea": "PEA",
+        "ticker": "Ticker", "name": "Nom", "stars": "Note", "signal": "Tendance",
+        "country": "Pays", "index_name": "Indice", "sector_fr": "Secteur", "pea": "PEA",
         "price_eur": "Cours €", "cap_mde": "Capi",
         "perf_1m": "Perf 1M", "target_pct": "Cible 12M",
         "target_low_pct": "Cible basse", "target_high_pct": "Cible haute",
@@ -975,6 +1002,7 @@ with tab_table:
         df_disp, height=620, use_container_width=True, hide_index=True,
         column_config={
             "Note":        st.column_config.TextColumn("Note", help="Consensus analystes (★ = achat)"),
+            "Tendance":    st.column_config.TextColumn("Tendance", help="Signal simple = momentum (perf 1M) + consensus analystes + potentiel. 🟢 Haussier · 🟡 Neutre · 🔴 Prudence. Pour le signal technique complet (RSI/MACD/MA), voir l'onglet Détail Ticker."),
             "Indice":      st.column_config.TextColumn("Indice", help="Indice boursier de provenance"),
             "PEA":         st.column_config.CheckboxColumn("PEA"),
             "Cours €":     st.column_config.NumberColumn("Cours €", format="%.2f €"),
@@ -1196,11 +1224,47 @@ with tab_ticker:
         k5.metric("Potentiel", fmt_pct(row.get("total_pct")))
 
         st.markdown(
-            f"**Consensus** : {reco_to_stars(row.get('reco_mean'))} "
+            f"**Consensus analystes** : {reco_to_stars(row.get('reco_mean'))} "
             f"· {row.get('reco_label', '-')} "
             f"· {int(row.get('analyst_count', 0) or 0)} analystes "
             f"· fourchette {fmt_pct(row.get('target_low_pct'))} → {fmt_pct(row.get('target_high_pct'))}"
         )
+        with st.expander("❓ C'est quoi le « consensus analystes » ?"):
+            st.markdown(
+                "Le **consensus** résume l'avis des analystes financiers professionnels (banques, "
+                "brokers) qui suivent cette action :\n\n"
+                "- **★ La note** : moyenne de leurs recommandations. 5★ = ils conseillent fortement "
+                "d'acheter, 1★ = ils conseillent de vendre. Le libellé (« Achat fort », « Conserver »...) "
+                "traduit cette moyenne.\n"
+                "- **Cible 12M** : l'objectif de cours moyen visé sous ~12 mois, exprimé en écart vs le "
+                "cours actuel. Ex : +20% = ils pensent que l'action vaudra 20% de plus dans 1 an.\n"
+                "- **Fourchette** : l'objectif le plus pessimiste → le plus optimiste parmi les analystes. "
+                "Plus elle est large, plus les avis divergent (= plus d'incertitude).\n"
+                "- **Nombre d'analystes** : combien suivent le titre. Plus il y en a, plus le consensus est "
+                "fiable. 1-2 analystes = à prendre avec prudence.\n\n"
+                "⚠️ Le consensus reflète une **opinion de marché**, pas une vérité : les analystes se "
+                "trompent souvent, surtout sur les petites valeurs."
+            )
+
+        # ── SIGNAL DE TENDANCE PRINCIPAL (technique, live) ──────────
+        with st.spinner("Calcul du signal de tendance..."):
+            hist_sig = fetch_ticker_history(ticker_sel, period=period_sel)
+        if not hist_sig.empty and "Close" in hist_sig.columns:
+            sig_sum = build_technical_summary(hist_sig)
+            sig_color = {"haussier": COLORS["green"], "baissier": COLORS["red"],
+                         "neutre": COLORS["amber"]}.get(sig_sum["bias"], COLORS["amber"])
+            st.markdown(
+                f"<div style='background:{COLORS['bg_panel']}; border:1px solid {sig_color}; "
+                f"border-left:5px solid {sig_color}; padding:14px 20px; border-radius:6px; margin:10px 0;'>"
+                f"<div style='color:{COLORS['text_mid']}; font-size:11px; text-transform:uppercase; "
+                f"letter-spacing:1px;'>📡 Signal de tendance technique (sur {period_sel})</div>"
+                f"<div style='font-size:18px; font-weight:800; color:{COLORS['text']}; margin-top:4px;'>"
+                f"{sig_sum['verdict']}</div>"
+                f"<div style='color:{COLORS['text_mid']}; font-size:12px; margin-top:6px;'>"
+                f"Détail des indicateurs (RSI, MACD, moyennes, Bollinger) plus bas ⬇️</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
 
         # Liens
         lc1, lc2, lc3 = st.columns(3)
