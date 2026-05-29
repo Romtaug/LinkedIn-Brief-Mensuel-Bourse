@@ -926,6 +926,82 @@ RECO_LABEL_FR = {
     "underperform":"Sous-performance",
 }
 
+
+# ═════════════════════════════════════════════════════════════════════
+#  SIGNAL TECHNIQUE (calculé dans le pipeline → stocké en colonne)
+#  Mêmes critères que l'app : moyennes mobiles 20/50/200 + RSI + MACD.
+#  Renvoie ("🟢", "Haussier") / ("🟡", "Neutre") / ("🔴", "Baissier").
+# ═════════════════════════════════════════════════════════════════════
+
+def _ta_rsi(close: "pd.Series", period: int = 14) -> "pd.Series":
+    delta = close.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1 / period, min_periods=period, adjust=False).mean()
+    rs = avg_gain / avg_loss
+    return 100 - (100 / (1 + rs))
+
+
+def compute_technical_signal(hist: "pd.DataFrame") -> tuple[str, str]:
+    """
+    Signal technique pur à partir de l'historique des cours.
+    Score = moyennes mobiles (20/50/200) + RSI + MACD.
+    Renvoie (emoji, label). Neutre si historique insuffisant.
+    """
+    try:
+        if hist is None or hist.empty or "Close" not in hist.columns:
+            return ("🟡", "Neutre")
+        close = hist["Close"].dropna()
+        if len(close) < 30:
+            return ("🟡", "Neutre")
+
+        last = float(close.iloc[-1])
+        score = 0
+
+        # 1. Moyennes mobiles
+        ma20 = close.rolling(20).mean().iloc[-1]
+        ma50 = close.rolling(50).mean().iloc[-1]
+        ma200 = close.rolling(200).mean().iloc[-1] if len(close) >= 200 else None
+        above20 = last > ma20
+        above50 = last > ma50
+        if ma200 is not None:
+            above200 = last > ma200
+            if above20 and above50 and above200:
+                score += 2
+            elif (not above20) and (not above50) and (not above200):
+                score -= 2
+        else:
+            if above20 and above50:
+                score += 1
+            elif (not above20) and (not above50):
+                score -= 1
+
+        # 2. RSI 14
+        rsi = _ta_rsi(close).iloc[-1]
+        if pd.notna(rsi):
+            if rsi >= 70:
+                score -= 1
+            elif rsi <= 30:
+                score += 1
+
+        # 3. MACD (12,26,9)
+        ema_fast = close.ewm(span=12, adjust=False).mean()
+        ema_slow = close.ewm(span=26, adjust=False).mean()
+        macd = ema_fast - ema_slow
+        sig = macd.ewm(span=9, adjust=False).mean()
+        if pd.notna(macd.iloc[-1]) and pd.notna(sig.iloc[-1]):
+            score += 1 if macd.iloc[-1] > sig.iloc[-1] else -1
+
+        if score >= 2:
+            return ("🟢", "Haussier")
+        if score <= -2:
+            return ("🔴", "Baissier")
+        return ("🟡", "Neutre")
+    except Exception:
+        return ("🟡", "Neutre")
+
+
 def fetch_one(ticker: str, market: str,
               fx_rates: dict[str, float] | None = None,
               max_retries: int = 3) -> dict[str, Any] | None:
@@ -1006,6 +1082,14 @@ def fetch_one(ticker: str, market: str,
             except Exception:
                 pass
 
+            # ── Signal technique (MA/RSI/MACD sur 1 an) ──────────────
+            tech_emoji, tech_label = "🟡", "Neutre"
+            try:
+                hist_1y = t.history(period="1y", auto_adjust=True)
+                tech_emoji, tech_label = compute_technical_signal(hist_1y)
+            except Exception:
+                pass
+
             # ── FILTRE BOURSORAMA STRICT (si activé) ─────────────────
             # Skip les tickers non couverts par Boursorama (Japon, HK, Canada, ASX, Norvège, etc.)
             # → garantit que tous les tickers du brief auront un lien BR fonctionnel
@@ -1042,6 +1126,7 @@ def fetch_one(ticker: str, market: str,
                 "analyst_count": int(n_analysts) if n_analysts else 0,
                 "total_pct": round(target_pct + div_pct, 2),
                 "perf_1m": round(perf_1m, 2) if perf_1m is not None else None,
+                "tech_signal": f"{tech_emoji} {tech_label}",
                 "pea": is_pea(ticker),
                 "isin": isin or "",
                 "boursorama_link": bourso_link,
