@@ -213,6 +213,20 @@ st.markdown(f"""
     }}
     .info-card .label {{ color: {COLORS['text_mid']}; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }}
     .info-card .value {{ color: {COLORS['text']}; font-size: 22px; font-weight: 800; font-family: 'Inter', sans-serif; }}
+
+    /* Sur mobile : empêcher l'empilement vertical d'1 colonne par ligne.
+       On force le wrap en gardant ~30% de largeur min → 3 par ligne. */
+    @media (max-width: 640px) {{
+        [data-testid="stHorizontalBlock"] {{
+            flex-wrap: wrap !important;
+            gap: 0.4rem !important;
+        }}
+        [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{
+            flex: 1 1 30% !important;
+            min-width: 30% !important;
+        }}
+        [data-testid="stMetricValue"] {{ font-size: 1.25rem !important; }}
+    }}
 </style>
 """, unsafe_allow_html=True)
 
@@ -441,7 +455,7 @@ def trend_signal(row: dict) -> tuple[str, str]:
 
 def build_claude_prompt(row: dict, info: dict | None = None) -> str:
     """Prompt Claude PRO : recherche web forcée + analyse détaillée + notation multi-critères."""
-    pea_str = "Oui ✅ (éligible PEA)" if row.get("pea") else "Non ❌ (CTO hors PEA)"
+    pea_str = "Oui ✅ (éligible PEA)" if row.get("pea") else "Non ❌ (CTO uniquement)"
     country = get_country_from_ticker(row["ticker"])
     div = row.get("div_pct", 0) or 0
     div_str = f"{div:.2f}%" if div else "0% (ne verse pas de dividende)"
@@ -936,7 +950,7 @@ with st.sidebar:
     search = st.text_input("Nom ou ticker", placeholder="ex: Apple, LVMH, MC.PA...").strip()
 
     st.markdown("### 🎯 Filtres")
-    elig = st.radio("Éligibilité", ["Tout", "PEA uniquement", "CTO hors PEA"])
+    elig = st.radio("Éligibilité", ["Tout", "PEA uniquement", "CTO uniquement"])
 
     # Ordre "du plus connu au moins connu" pour Pays et Indices
     def _by_order(values, order):
@@ -1068,7 +1082,7 @@ if search:
 
 if elig == "PEA uniquement":
     df_f = df_f[df_f["pea"] == True]
-elif elig == "CTO hors PEA":
+elif elig == "CTO uniquement":
     df_f = df_f[df_f["pea"] == False]
 
 if sectors_sel:
@@ -1475,7 +1489,7 @@ with tab_ticker:
         st.markdown(
             f"<span style='color:{COLORS['text_mid']}'>"
             f"{get_country_from_ticker(ticker_sel)} · {row.get('sector_fr', '-')} · "
-            f"{'✅ Éligible PEA' if row.get('pea') else '🌍 CTO hors PEA'} · "
+            f"{'✅ Éligible PEA' if row.get('pea') else '🌍 CTO uniquement'} · "
             f"ISIN {row.get('isin') or '-'}</span>",
             unsafe_allow_html=True,
         )
