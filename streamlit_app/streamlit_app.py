@@ -169,7 +169,10 @@ st.markdown(f"""
         font-family: 'Inter', sans-serif;
         color: {COLORS['blue']};
         font-weight: 800;
+        font-size: 1.5rem;
     }}
+    [data-testid="stMetricLabel"] p {{ font-size: 0.78rem !important; }}
+    [data-testid="stMetricDelta"] {{ font-size: 0.75rem !important; }}
     [data-testid="stSidebar"] {{
         background: {COLORS['bg_panel']};
     }}
@@ -415,7 +418,7 @@ def color_for_pct(v) -> str:
 def trend_signal(row: dict) -> tuple[str, str]:
     """
     Signal de tendance SIMPLE pour le tableau (momentum + consensus + potentiel).
-    ⚠️ Ce n'est PAS un signal technique complet (RSI/MACD/MA) - celui-là est
+    ⚠️ Ce n'est PAS un signal technique complet (RSI/MACD/MA) — celui-là est
     dans l'onglet Détail Ticker. Ici on combine les données déjà dispo dans l'Excel.
     Retourne (emoji, label).
     """
@@ -438,7 +441,7 @@ def trend_signal(row: dict) -> tuple[str, str]:
 
 def build_claude_prompt(row: dict, info: dict | None = None) -> str:
     """Prompt Claude PRO : recherche web forcée + analyse détaillée + notation multi-critères."""
-    pea_str = "Oui ✅ (éligible PEA)" if row.get("pea") else "Non ❌ (CTO uniquement)"
+    pea_str = "Oui ✅ (éligible PEA)" if row.get("pea") else "Non ❌ (CTO hors PEA)"
     country = get_country_from_ticker(row["ticker"])
     div = row.get("div_pct", 0) or 0
     div_str = f"{div:.2f}%" if div else "0% (ne verse pas de dividende)"
@@ -624,7 +627,7 @@ def _write_synthesis_sheet(ws, kpis: dict, top_df: pd.DataFrame, pct_cols: list,
 
     # Bandeau titre (lignes 1-2)
     ws.merge_cells("A1:F1")
-    c = ws.cell(row=1, column=1, value="BRIEF MENSUEL BOURSE - Synthèse")
+    c = ws.cell(row=1, column=1, value="BRIEF MENSUEL BOURSE — Synthèse")
     c.fill = title_fill; c.font = title_font
     c.alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[1].height = 28
@@ -933,7 +936,7 @@ with st.sidebar:
     search = st.text_input("Nom ou ticker", placeholder="ex: Apple, LVMH, MC.PA...").strip()
 
     st.markdown("### 🎯 Filtres")
-    elig = st.radio("Éligibilité", ["Tout", "PEA uniquement", "CTO uniquement"])
+    elig = st.radio("Éligibilité", ["Tout", "PEA uniquement", "CTO hors PEA"])
 
     # Ordre "du plus connu au moins connu" pour Pays et Indices
     def _by_order(values, order):
@@ -1065,7 +1068,7 @@ if search:
 
 if elig == "PEA uniquement":
     df_f = df_f[df_f["pea"] == True]
-elif elig == "CTO uniquement":
+elif elig == "CTO hors PEA":
     df_f = df_f[df_f["pea"] == False]
 
 if sectors_sel:
@@ -1472,7 +1475,7 @@ with tab_ticker:
         st.markdown(
             f"<span style='color:{COLORS['text_mid']}'>"
             f"{get_country_from_ticker(ticker_sel)} · {row.get('sector_fr', '-')} · "
-            f"{'✅ Éligible PEA' if row.get('pea') else '🌍 CTO uniquement'} · "
+            f"{'✅ Éligible PEA' if row.get('pea') else '🌍 CTO hors PEA'} · "
             f"ISIN {row.get('isin') or '-'}</span>",
             unsafe_allow_html=True,
         )
@@ -1779,7 +1782,7 @@ with tab_ticker:
                     f"<span style='color:{COLORS['gold']}; font-weight:700;'>📐 Tendance de fond (régression)</span> : "
                     f"pente annualisée <span style='color:{pente_clr}; font-weight:800;'>{reg_slope_annual:+.1f}%/an</span>. "
                     f"<span style='color:{COLORS['text_mid']}; font-size:13px;'>"
-                    f"La projection en pointillé prolonge cette droite - c'est une <b>extrapolation naïve</b> "
+                    f"La projection en pointillé prolonge cette droite — c'est une <b>extrapolation naïve</b> "
                     f"(« si la tendance passée continuait à l'identique »), <b>pas une prévision</b>. "
                     f"Les cours réels ne suivent jamais une droite.</span></div>",
                     unsafe_allow_html=True,
@@ -2081,7 +2084,7 @@ with tab_alloc:
         )
 
     st.markdown("---")
-    st.markdown("#### 🎲 Ta poche FUN - suggestions depuis ton classement filtré")
+    st.markdown("#### 🎲 Ta poche FUN — suggestions depuis ton classement filtré")
     montant_par_ligne = montant_fun / n_fun if n_fun else 0
     st.caption(f"Soit **{_eur(montant_par_ligne)}** par ligne. Suggestions ci-dessous : "
                f"les meilleurs potentiels de ta sélection actuelle, **1 par secteur** (diversification).")
@@ -2115,7 +2118,7 @@ with tab_alloc:
             st.caption(f"ℹ️ Seulement {len(fun_picks)} secteurs disponibles dans ta sélection "
                        f"(tu as demandé {n_fun} lignes). Élargis les filtres pour plus de diversité.")
 
-    st.caption("⚠️ Simulateur pédagogique - ce n'est pas un conseil en investissement. "
+    st.caption("⚠️ Simulateur pédagogique — ce n'est pas un conseil en investissement. "
                "Les montants sont indicatifs, à adapter à ta situation. Risque de perte en capital.")
 
 
