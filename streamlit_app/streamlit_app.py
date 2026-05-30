@@ -1140,7 +1140,7 @@ avg_pot = df_f["total_pct"].mean() if n_total else 0
 avg_div = df_f["div_pct"].mean() if (n_total and "div_pct" in df_f.columns) else 0
 
 m1, m2, m3, m4, m5 = st.columns(5)
-m1.metric("Actions affichées", f"{n_total}", delta=f"sur {len(df)} totales")
+m1.metric("Actions", f"{n_total}")
 m2.metric("PEA · Zone EEE", f"{n_pea}", delta=f"{100*n_pea/max(1,n_total):.0f}%")
 m3.metric("CTO · Mondial", f"{n_cto}", delta=f"{100*n_cto/max(1,n_total):.0f}%")
 m4.metric("Potentiel moyen", fmt_pct(avg_pot))
