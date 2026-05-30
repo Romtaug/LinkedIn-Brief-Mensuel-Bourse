@@ -215,17 +215,30 @@ st.markdown(f"""
     .info-card .value {{ color: {COLORS['text']}; font-size: 22px; font-weight: 800; font-family: 'Inter', sans-serif; }}
 
     /* Sur mobile : empêcher l'empilement vertical d'1 colonne par ligne.
-       On force le wrap en gardant ~30% de largeur min → 3 par ligne. */
+       On force le wrap à 2 par ligne, contenu centré, labels non coupés. */
     @media (max-width: 640px) {{
         [data-testid="stHorizontalBlock"] {{
             flex-wrap: wrap !important;
-            gap: 0.4rem !important;
+            gap: 0.5rem !important;
         }}
         [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {{
-            flex: 1 1 30% !important;
-            min-width: 30% !important;
+            flex: 1 1 45% !important;
+            min-width: 45% !important;
         }}
-        [data-testid="stMetricValue"] {{ font-size: 1.25rem !important; }}
+        /* Cartes KPI : centrées + label sur plusieurs lignes si besoin */
+        [data-testid="stMetric"] {{
+            text-align: center;
+        }}
+        [data-testid="stMetricLabel"], [data-testid="stMetricValue"],
+        [data-testid="stMetricDelta"] {{
+            justify-content: center !important;
+        }}
+        [data-testid="stMetricLabel"] p {{
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+        }}
+        [data-testid="stMetricValue"] {{ font-size: 1.3rem !important; }}
     }}
 </style>
 """, unsafe_allow_html=True)
